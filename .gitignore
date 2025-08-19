@@ -1,5 +1,12 @@
+# julia
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
 /Manifest*.toml
+
+# env
+.vscode/
 .DS_Store
+
+# data
+data/

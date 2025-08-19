@@ -1,6 +1,7 @@
-using SiennaNEM
 using Test
+using SiennaNEM
 
-@testset "SiennaNEM.jl" begin
-    # Write your tests here.
+@testset "SiennaNEM Tests" begin
+    include("test_read_data.jl")
+    include("test_create_system.jl")
 end
