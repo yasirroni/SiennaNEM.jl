@@ -1,11 +1,12 @@
-include("utils.jl")  # get add_sts
-data_dir = "data/arrow/"
-
-function add_st!(data, scenario_name=1)
+function add_ts!(sys, data; scenario_name=1)
     # TODO: use multiple scenarios as mentioned in
     #   https://nrel-sienna.github.io/PowerSystems.jl/stable/explanation/time_series/#Forecasts
+    df_generator = data["generator"]
     df_demand_ts = data["demand_ts"]
     df_generator_ts = data["generator_ts"]
+    renewable_dispatch_generators = data["components"]["renewable_dispatch_generators"]
+    renewable_nondispatch_generators = data["components"]["renewable_nondispatch_generators"]
+    demands = data["components"]["demands"]
 
     # read generator ts
     # NOTE: remove missing due to gen_id == 78

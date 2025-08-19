@@ -13,8 +13,9 @@ function read_data_csv(data_dir)
     df_data["line"] = CSV.read(line_path, DataFrame)
     df_data["demand"] = CSV.read(demand_path, DataFrame)
     df_data["storage"] = CSV.read(storage_path, DataFrame)
-    df_data["demand_ts"] = CSV.read(demand_ts_path, DataFrame)
-    df_data["generator_ts"] = CSV.read(generator_ts_path, DataFrame)
+
+    df_data["demand_ts"] = preprocess_date!(CSV.read(demand_ts_path, DataFrame))
+    df_data["generator_ts"] = preprocess_date!(CSV.read(generator_ts_path, DataFrame))
 
     return df_data
 end

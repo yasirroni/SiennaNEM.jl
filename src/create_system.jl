@@ -546,4 +546,5 @@ function create_system!(data)
         "battery_storages" => battery_storages,
         "hydro_storages" => hydro_storages,
     )
+    return sys
 end
