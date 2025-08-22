@@ -1,58 +1,75 @@
 # TODO:
 #   Check and support all types below
-# Row │ tech                         type
-#     │ String31                     String31
-# ────┼──────────────────────────────────────────────────────────
-#   1 │ Coal                         Coal
-#   2 │ Black Coal QLD               Steam Sub Critical
-#   3 │ Diesel                       Diesel
-#   4 │ Diesel                       Reciprocating Engine
-#   5 │ Hydro                        Hydro
-#   6 │ Hydrogen-based gas turbines  Hydrogen-based gas turbines
-#   7 │ OCGT                         OCGT
-#   8 │ CCGT                         CCGT
-#   9 │ OCGT                         Gas-powered steam turbine
-#  10 │ RoofPV                       RoofPV
-#  11 │ LargePV                      LargePV
-#  12 │ Wind                         Wind
+# 
+# unique(data["generator"][:, [:tech, :type]])
+# combine(groupby(data["generator"], [:tech, :type]), nrow => :count)
+# 
+# Row │ tech                         type                         count 
+#     │ String31                     String31                     Int64 
+# ───-┼─────────────────────────────────────────────────────────────────
+#   1 │ Black Coal NSW               Steam Sub Critical               4
+#   2 │ Black Coal QLD               Steam Sub Critical               4
+#   3 │ Black Coal QLD               Steam Super Critical             4
+#   4 │ Brown Coal VIC               Steam Sub Critical               2
+#   5 │ Brown Coal                   Steam Sub Critical               1
+#   6 │ Diesel                       Reciprocating Engine             7
+#   7 │ Run-of-River                 Vertical Francis                 1
+#   8 │ Run-of-River                 Francis / Pelton                 1
+#   9 │ Run-of-River                 Pelton                           1
+#  10 │ Reservoir                    Francis                         22
+#  11 │ Reservoir                    Pelton                           2
+#  12 │ Reservoir                    Kaplan                           2
+#  13 │ Reservoir                    Nozzle-spear Pelton              1
+#  14 │ Hydrogen-based gas turbines  Hydrogen-based gas turbines      2
+#  15 │ OCGT                         OCGT                            24
+#  16 │ OCGT                         GE Frame 5                       1
+#  17 │ OCGT                         Gas-powered steam turbine        2
+#  18 │ OCGT                         Frame 6B                         1
+#  19 │ CCGT                         CCGT                             9
+#  20 │ RoofPV                       RoofPV                          12
+#  21 │ LargePV                      LargePV                         10
+#  22 │ Wind                         Wind                            10
 
 # NOTE:
 #   Sienna also has WS for off shore wind turbine, but no off shore wind in
 # Australia for now
 #   Various other coal and oil fuel availables.
-# TODO:
-#   Support black coal for QLD
-#   The Hydro is decided as Dam
 
-if !isdefined(Main, :type_to_primemover)
-    const type_to_primemover = Dict(
-        "Coal" => PrimeMovers.ST,
-        "Steam Sub Critical" => PrimeMovers.ST,
+# https://nrel-sienna.github.io/PowerSystems.jl/stable/api/enumerated_types/
+
+if !isdefined(Main, :tech_to_primemover)
+    const tech_to_primemover = Dict(
+        "Black Coal NSW" => PrimeMovers.ST,
+        "Black Coal QLD" => PrimeMovers.ST,
+        "Brown Coal VIC" => PrimeMovers.ST,
+        "Brown Coal" => PrimeMovers.ST,
         "Diesel" => PrimeMovers.IC,
-        "Reciprocating Engine" => PrimeMovers.IC,
-        "Hydro" => PrimeMovers.HY,
+        "Run-of-River" => PrimeMovers.HY,
+        "Reservoir" => PrimeMovers.HY,
         "Hydrogen-based gas turbines" => PrimeMovers.GT,
         "OCGT" => PrimeMovers.GT,
         "CCGT" => PrimeMovers.CC,
-        "Gas-powered steam turbine" => PrimeMovers.ST,
         "RoofPV" => PrimeMovers.PVe,
         "LargePV" => PrimeMovers.PVe,
         "Wind" => PrimeMovers.WT,
         "BESS" => PrimeMovers.BA,
-        "PS" => PrimeMovers.PS,
+        "PS" => PrimeMovers.HY,
     )
 end
-if !isdefined(Main, :type_to_datatype)
-    const type_to_datatype = Dict(
-        "Coal" => ThermalStandard,
-        "Steam Sub Critical" => ThermalStandard,
+
+# TODO: use tech instead of type
+if !isdefined(Main, :tech_to_datatype)
+    const tech_to_datatype = Dict(
+        "Black Coal NSW" => ThermalStandard,
+        "Black Coal QLD" => ThermalStandard,
+        "Brown Coal VIC" => ThermalStandard,
+        "Brown Coal" => ThermalStandard,
         "Diesel" => ThermalStandard,
-        "Reciprocating Engine" => ThermalStandard,
-        "Hydro" => HydroDispatch,
+        "Run-of-River" => HydroDispatch,
+        "Reservoir" => HydroEnergyReservoir,
         "Hydrogen-based gas turbines" => ThermalStandard,
         "OCGT" => ThermalStandard,
         "CCGT" => ThermalStandard,
-        "Gas-powered steam turbine" => ThermalStandard,
         "RoofPV" => RenewableNonDispatch,
         "LargePV" => RenewableDispatch,
         "Wind" => RenewableDispatch,
@@ -60,15 +77,15 @@ if !isdefined(Main, :type_to_datatype)
         "PS" => HydroPumpedStorage,
     )
 end
-if !isdefined(Main, :type_to_fuel)
-    const type_to_fuel = Dict(
-        "Coal" => ThermalFuels.COAL,
-        "Steam Sub Critical" => ThermalFuels.COAL,
+if !isdefined(Main, :tech_to_fuel)
+    const tech_to_fuel = Dict(
+        "Black Coal NSW" => ThermalFuels.COAL,
+        "Black Coal QLD" => ThermalFuels.COAL,
+        "Brown Coal VIC" => ThermalFuels.COAL,
+        "Brown Coal" => ThermalFuels.COAL,
         "Diesel" => ThermalFuels.DISTILLATE_FUEL_OIL,
-        "Reciprocating Engine" => ThermalFuels.DISTILLATE_FUEL_OIL,
         "Hydrogen-based gas turbines" => ThermalFuels.OTHER,
         "OCGT" => ThermalFuels.NATURAL_GAS,
         "CCGT" => ThermalFuels.NATURAL_GAS,
-        "Gas-powered steam turbine" => ThermalFuels.NATURAL_GAS,
     )
 end
