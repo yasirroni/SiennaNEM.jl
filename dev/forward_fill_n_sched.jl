@@ -3,6 +3,23 @@ using DataFrames
 using CSV
 using Dates
 
+function forward_fill!(df, exclude_cols=[:date])
+    for col_name in names(df)
+        if !(col_name in exclude_cols)
+            col_values = df[!, col_name]
+            last_valid = col_values[1]  # Start with first value
+            
+            for i in 2:length(col_values)
+                if ismissing(col_values[i])
+                    col_values[i] = last_valid
+                else
+                    last_valid = col_values[i]  # Update last valid value
+                end
+            end
+        end
+    end
+end
+
 system_data_dir = "data/nem12"
 ts_data_dir = joinpath(system_data_dir, "schedule-1w")
 generator_n_sched_path = joinpath(ts_data_dir, "Generator_n_sched.csv")
@@ -67,8 +84,7 @@ for row in eachrow(df_ts_selected)
 end
 
 # forward fill
-df_ts_out[:, Not(:date)] = Impute.locf(df_ts_out[:, Not(:date)])
-
+forward_fill!(df_ts_out)
 
 # Calculate the datetime range for display
 target_datetime = DateTime("2024-02-01T00:00:00")
