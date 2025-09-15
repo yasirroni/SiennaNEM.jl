@@ -31,8 +31,8 @@ preprocess_date!(df_ts)
 sort!(df_ts, :date)
 
 # initial n data
-df_gen[:, [:id, :n]]
-gen_ids = string.(df_gen.id)
+df_gen[:, [:id_gen, :n]]
+gen_ids = string.(df_gen.id_gen)
 gen_ns = df_gen.n
 df_init = DataFrame(Dict(zip(gen_ids, gen_ns)))
 
@@ -46,7 +46,7 @@ df_ts_before_selected = filter(
         && row.scenario == scenario,
     df_ts
 )
-df_ts_before_selected = combine(groupby(df_ts_before_selected, :gen_id)) do group
+df_ts_before_selected = combine(groupby(df_ts_before_selected, :id_gen)) do group
     group[end, :]
 end
 df_ts_selected = filter(
@@ -59,7 +59,7 @@ println(df_ts_before_selected)
 println(df_ts_selected)
 
 # update df_init with df_ts_before_selected
-gen_ids_update = string.(df_ts_before_selected.gen_id)
+gen_ids_update = string.(df_ts_before_selected.id_gen)
 gen_values_update = df_ts_before_selected.value
 df_init[1, gen_ids_update] .= gen_values_update
 
@@ -71,7 +71,7 @@ end
 
 # inject df_ts_selected values into specific row/column locations
 for row in eachrow(df_ts_selected)
-    gen_id_col = string(row.gen_id)  # Convert gen_id to string (column name)
+    gen_id_col = string(row.id_gen)  # Convert id_gen to string (column name)
     target_datetime = row.date       # Use full DateTime, not just Date
     
     # Find the row index where datetime matches exactly

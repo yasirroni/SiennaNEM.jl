@@ -24,8 +24,8 @@ end
 function read_ts_data_csv!(data, data_dir)
     demand_ts_path = joinpath(data_dir, "Demand_load_sched.csv")
     generator_ts_path = joinpath(data_dir, "Generator_pmax_sched.csv")
-    data["demand_ts"] = preprocess_date!(CSV.read(demand_ts_path, DataFrame))
-    data["generator_ts"] = preprocess_date!(CSV.read(generator_ts_path, DataFrame))
+    data["demand_ts"] = add_day!(CSV.read(demand_ts_path, DataFrame))
+    data["generator_ts"] = add_day!(CSV.read(generator_ts_path, DataFrame))
     return data
 end
 

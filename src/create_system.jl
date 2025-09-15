@@ -10,8 +10,8 @@ function get_flat_generators(nested_dict)
 end
 
 # Get all units for a specific generator ID
-function get_generator_units(nested_dict, gen_id)
-    return get(nested_dict, gen_id, Dict{Int,Any}())
+function get_generator_units(nested_dict, id_gen)
+    return get(nested_dict, id_gen, Dict{Int,Any}())
 end
 
 # Get total count of all generators
@@ -34,7 +34,8 @@ function create_system!(data)
     areas = Dict{Int,PSY.Area}()
     buses = Dict{Int,PSY.ACBus}()
     for row in eachrow(df_bus)
-        name = string(row.id)
+        id = row.id_bus
+        name = string(id)
         area = PSY.Area(
             name=name,
             peak_active_power=0.0,
@@ -42,7 +43,7 @@ function create_system!(data)
             load_response=0.0,  # support load-frequency damping
         )
         bus = PSY.ACBus(;
-            number=row.id,
+            number=id,
             name=name,
             bustype=ACBusTypes.PV,
             angle=0.0,
@@ -55,8 +56,8 @@ function create_system!(data)
                 "longitude"=>row.longitude,
             ),
         )
-        areas[row.id] = area
-        buses[row.id] = bus
+        areas[id] = area
+        buses[id] = bus
         add_component!(sys, area)
         add_component!(sys, bus)
     end
@@ -79,14 +80,15 @@ function create_system!(data)
 
         # NOTE: innactive lines is properly excluded by PowerModels.
 
+        id = row.id_lin
         line = PSY.Line(;
-            name=string(row.id),
+            name=string(id),
             available=row.active,
             active_power_flow=0.0,
             reactive_power_flow=0.0,
             arc=PSY.Arc(;
-                from=buses[row["bus_a_id"]],
-                to=buses[row["bus_b_id"]]
+                from=buses[row["id_bus_from"]],
+                to=buses[row["id_bus_to"]]
             ),
             r=row.r,
             x=row.x,
@@ -94,7 +96,7 @@ function create_system!(data)
             rating=row.capacity / baseMVA,
             angle_limits=(min=-pi/2, max=pi/2),
         )
-        lines[row.id] = line
+        lines[id] = line
         add_component!(sys, line)
     end
 
@@ -142,23 +144,24 @@ function create_system!(data)
             # NOTE:
             # To print data that is skipped:
             #
-            #   println(row.id, ": ", row.DataType, " ", row.capacity)
+            #   println(id, ": ", row.DataType, " ", row.capacity)
             continue
         end
 
         # Initialize nested dictionaries for this generator ID
-        generators[row.id] = Dict{Int,PSY.Generator}()
+        id = row.id_gen
+        generators[id] = Dict{Int,PSY.Generator}()
 
         if row.DataType == ThermalStandard
-            thermal_generators[row.id] = Dict{Int,PSY.ThermalStandard}()
+            thermal_generators[id] = Dict{Int,PSY.ThermalStandard}()
 
             for i in 1:row.n
-                name = string(row.id, "_", i)
+                name = string(id, "_", i)
                 gen = PSY.ThermalStandard(;
                     name=name,
                     available=row.active,
                     status=true,
-                    bus=buses[row.bus_id],
+                    bus=buses[row.id_bus],
                     active_power=0,
                     reactive_power=0,
                     rating=1,
@@ -179,20 +182,20 @@ function create_system!(data)
                     prime_mover_type=row.PrimeMovers,
                     fuel=row.ThermalFuels,
                 )
-                generators[row.id][i] = gen
-                thermal_generators[row.id][i] = gen
+                generators[id][i] = gen
+                thermal_generators[id][i] = gen
                 add_component!(sys, gen)
             end
 
         elseif row.DataType == HydroDispatch
             if !ENV_HYDRORES_AS_THERMAL
-                hydro_dispatch_generators[row.id] = Dict{Int,PSY.HydroDispatch}()
+                hydro_dispatch_generators[id] = Dict{Int,PSY.HydroDispatch}()
                 for i in 1:row.n
-                    name = string(row.id, "_", i)
+                    name = string(id, "_", i)
                     gen = HydroDispatch(;
                         name=name,
                         available=row.active,
-                        bus=buses[row.bus_id],
+                        bus=buses[row.id_bus],
                         active_power=0,
                         reactive_power=0,
                         rating=1,
@@ -204,19 +207,19 @@ function create_system!(data)
                         time_limits=nothing, # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
                         prime_mover_type=row.PrimeMovers,
                     )
-                    generators[row.id][i] = gen
-                    hydro_dispatch_generators[row.id][i] = gen
+                    generators[id][i] = gen
+                    hydro_dispatch_generators[id][i] = gen
                     add_component!(sys, gen)
                 end
             else
-                hydro_dispatch_generators[row.id] = Dict{Int,PSY.ThermalStandard}()
+                hydro_dispatch_generators[id] = Dict{Int,PSY.ThermalStandard}()
                 for i in 1:row.n
-                    name = string(row.id, "_", i)
+                    name = string(id, "_", i)
                     gen = PSY.ThermalStandard(;
                         name=name,
                         available=row.active,
                         status=true,
-                        bus=buses[row.bus_id],
+                        bus=buses[row.id_bus],
                         active_power=0,
                         reactive_power=0,
                         rating=1,
@@ -237,8 +240,8 @@ function create_system!(data)
                         prime_mover_type=PrimeMovers.GT,  # Gas Turbine to show fast ramp
                         fuel=ThermalFuels.OTHER,  # other, using water
                     )
-                    generators[row.id][i] = gen
-                    hydro_dispatch_generators[row.id][i] = gen
+                    generators[id][i] = gen
+                    hydro_dispatch_generators[id][i] = gen
                     add_component!(sys, gen)
                 end
             end
@@ -248,14 +251,14 @@ function create_system!(data)
                 # TODO: support HydroEnergyReservoir
                 continue
             else
-                hydro_energyreservoir_generators[row.id] = Dict{Int,PSY.ThermalStandard}()
+                hydro_energyreservoir_generators[id] = Dict{Int,PSY.ThermalStandard}()
                 for i in 1:row.n
-                    name = string(row.id, "_", i)
+                    name = string(id, "_", i)
                     gen = PSY.ThermalStandard(;
                         name=name,
                         available=row.active,
                         status=true,
-                        bus=buses[row.bus_id],
+                        bus=buses[row.id_bus],
                         active_power=0,
                         reactive_power=0,
                         rating=1,
@@ -276,21 +279,21 @@ function create_system!(data)
                         prime_mover_type=PrimeMovers.GT,  # Gas Turbine to show fast ramp
                         fuel=ThermalFuels.OTHER,  # other, using water
                     )
-                    generators[row.id][i] = gen
-                    hydro_energyreservoir_generators[row.id][i] = gen
+                    generators[id][i] = gen
+                    hydro_energyreservoir_generators[id][i] = gen
                     add_component!(sys, gen)
                 end
             end
 
         elseif row.DataType == RenewableDispatch
-            renewable_dispatch_generators[row.id] = Dict{Int,PSY.RenewableDispatch}()
+            renewable_dispatch_generators[id] = Dict{Int,PSY.RenewableDispatch}()
 
             for i in 1:row.n
-                name = string(row.id, "_", i)
+                name = string(id, "_", i)
                 gen = RenewableDispatch(;
                     name=name,
                     available=row.active,
-                    bus=buses[row.bus_id],
+                    bus=buses[row.id_bus],
                     active_power=0,
                     reactive_power=0,
                     rating=1,
@@ -300,20 +303,20 @@ function create_system!(data)
                     operation_cost=RenewableGenerationCost(nothing),
                     base_power=row.pmax,
                 )
-                generators[row.id][i] = gen
-                renewable_dispatch_generators[row.id][i] = gen
+                generators[id][i] = gen
+                renewable_dispatch_generators[id][i] = gen
                 add_component!(sys, gen)
             end
 
         elseif row.DataType == RenewableNonDispatch
-            renewable_nondispatch_generators[row.id] = Dict{Int,PSY.RenewableNonDispatch}()
+            renewable_nondispatch_generators[id] = Dict{Int,PSY.RenewableNonDispatch}()
 
             for i in 1:row.n
-                name = string(row.id, "_", i)
+                name = string(id, "_", i)
                 gen = RenewableNonDispatch(;
                     name=name,
                     available=row.active,
-                    bus=buses[row.bus_id],
+                    bus=buses[row.id_bus],
                     active_power=0,
                     reactive_power=0,
                     rating=1,
@@ -321,8 +324,8 @@ function create_system!(data)
                     power_factor=1.0,
                     base_power=row.pmax,
                 )
-                generators[row.id][i] = gen
-                renewable_nondispatch_generators[row.id][i] = gen
+                generators[id][i] = gen
+                renewable_nondispatch_generators[id][i] = gen
                 add_component!(sys, gen)
             end
         end
@@ -336,18 +339,18 @@ function create_system!(data)
         if row.controllable == 1
             continue  # skip controllable load for now
         end
-        name = row.id
+        id = row.id_dem
         demand = PowerLoad(;
-            name=string(row.id),
+            name=string(id),
             available=row.active,
-            bus=buses[row.bus_id],
+            bus=buses[row.id_bus],
             active_power=0, # Per-unitized by device base_power
             reactive_power=0, # Per-unitized by device base_power
             base_power=baseMVA, # MVA
             max_active_power=100000.0, # per-unitized by device base_power
             max_reactive_power=100000.0,
         )
-        demands[name] = demand
+        demands[id] = demand
         add_component!(sys, demand)
     end
 
@@ -425,16 +428,17 @@ function create_system!(data)
         output_active_power_limits_max = row.pmax / row.capacity
         storage_target = row.eini/100
 
+        id = row.id_ess
         if row.DataType == EnergyReservoirStorage
             storage_level_limits_min = row.emin/100
-            storages[row.id] = Dict{Int,PSY.EnergyReservoirStorage}()
-            battery_storages[row.id] = Dict{Int,PSY.EnergyReservoirStorage}()
+            storages[id] = Dict{Int,PSY.EnergyReservoirStorage}()
+            battery_storages[id] = Dict{Int,PSY.EnergyReservoirStorage}()
             for i in 1:row.n
-                name = string(row.id, "_", i)
+                name = string(id, "_", i)
                 storage = EnergyReservoirStorage(;
                     name=name,
                     available=row.active,
-                    bus=buses[row.bus_id],
+                    bus=buses[row.id_bus],
                     prime_mover_type=row.PrimeMovers,
                     active_power=0, # Per-unitized by device base_power
                     reactive_power=0, # Per-unitized by device base_power
@@ -451,8 +455,8 @@ function create_system!(data)
                     operation_cost=StorageCost(nothing),  # only support based MW charge and discharge
                     storage_target=storage_target,
                 )
-                storages[row.id][i] = storage
-                battery_storages[row.id][i] = storage
+                storages[id][i] = storage
+                battery_storages[id][i] = storage
                 add_component!(sys, storage)
             end
         elseif row.DataType == HydroPumpedStorage
@@ -471,14 +475,14 @@ function create_system!(data)
             if !ENV_HYDROPUMP_AS_BATTERY
                 # NOTE: reactive_power_limits_max is used for reactive_power_limits_pump and reactive_power_limits
                 reactive_power_limits_max = row.capacity * sqrt((1/row.powerfactor^2) - 1)
-                storages[row.id] = Dict{Int,PSY.HydroPumpedStorage}()
-                hydro_storages[row.id] = Dict{Int,PSY.HydroPumpedStorage}()
+                storages[id] = Dict{Int,PSY.HydroPumpedStorage}()
+                hydro_storages[id] = Dict{Int,PSY.HydroPumpedStorage}()
                 for i in 1:row.n
-                    name = string(row.id, "_", i)
+                    name = string(id, "_", i)
                     storage = HydroPumpedStorage(;
                         name=name,
                         available=row.active,
-                        bus=buses[row.bus_id],
+                        bus=buses[row.id_bus],
                         active_power=0, # Per-unitized by device base_power
                         reactive_power=0, # Per-unitized by device base_power
                         rating=1,
@@ -502,20 +506,20 @@ function create_system!(data)
                         pump_efficiency=row.ch_eff,
                         conversion_factor=row.dch_eff,
                     )
-                    storages[row.id][i] = storage
-                    hydro_storages[row.id][i] = storage
+                    storages[id][i] = storage
+                    hydro_storages[id][i] = storage
                     add_component!(sys, storage)
                 end
             else
                 storage_level_limits_min = row.emin/100
-                storages[row.id] = Dict{Int,PSY.EnergyReservoirStorage}()
-                hydro_storages[row.id] = Dict{Int,PSY.EnergyReservoirStorage}()
+                storages[id] = Dict{Int,PSY.EnergyReservoirStorage}()
+                hydro_storages[id] = Dict{Int,PSY.EnergyReservoirStorage}()
                 for i in 1:row.n
-                    name = string(row.id, "_", i)
+                    name = string(id, "_", i)
                     storage = EnergyReservoirStorage(;
                         name=name,
                         available=row.active,
-                        bus=buses[row.bus_id],
+                        bus=buses[row.id_bus],
                         prime_mover_type=row.PrimeMovers,
                         active_power=0, # Per-unitized by device base_power
                         reactive_power=0, # Per-unitized by device base_power
@@ -532,8 +536,8 @@ function create_system!(data)
                         operation_cost=StorageCost(nothing),  # only support based MW charge and discharge
                         storage_target=storage_target,
                     )
-                    storages[row.id][i] = storage
-                    hydro_storages[row.id][i] = storage
+                    storages[id][i] = storage
+                    hydro_storages[id][i] = storage
                     add_component!(sys, storage)
                 end
             end
@@ -554,7 +558,7 @@ function create_system!(data)
         row -> row.DataType == ThermalStandard && row.active == 1, df_generator
     )
     slack_bus = df_thermalgenerators_active[
-        argmax(df_thermalgenerators_active[:, :capacity]), :bus_id
+        argmax(df_thermalgenerators_active[:, :capacity]), :id_bus
     ]
     set_bustype!(buses[slack_bus], ACBusTypes.REF)
 

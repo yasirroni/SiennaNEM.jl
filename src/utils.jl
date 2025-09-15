@@ -5,7 +5,9 @@ function add_day!(df)
 end
 
 function date_as_datetime!(df)
-    df[!, :date] = DateTime.(df[!, :date], DateFormat("yyyy-mm-dd HH:MM:SS"))
+    if !(eltype(df.date) <: DateTime)
+        df.date = DateTime.(df.date, DateFormat("yyyy-mm-dd HH:MM:SS"))
+    end
 end
 
 function preprocess_date!(df)

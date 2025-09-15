@@ -27,6 +27,13 @@ cd ..
 cp -r NEM-reliability-suite/data/nem12 data/nem12
 ```
 
+<!-- 
+```sh
+rm -rf data/nem12
+cp -r NEM-reliability-suite/data/nem12-updated-csv data/nem12
+```
+-->
+
 ### Installation
 
 ```julia
