@@ -13,7 +13,6 @@ HydroPowerSimulations = "fc1677e0-6ad7-4515-bf3a-bd6bf20a0b1b"
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 PowerSimulations = "e690365d-45e2-57bb-ac84-44ba829e73c4"
 PowerSystems = "bcd98974-b02a-5e2f-9ee0-a103f5c450dd"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 StorageSystemsSimulations = "e2f1a126-19d0-4674-9252-42b2384f8e3c"
 TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
 
@@ -27,12 +26,13 @@ HydroPowerSimulations = "0.11.1"
 PowerModels = "0.21.5"
 PowerSimulations = "0.30.2"
 PowerSystems = "4.6.2"
-Revise = "3.9.0"
 StorageSystemsSimulations = "0.12.0"
 TimeSeries = "0.24.2"
 julia = "1.11"
 
 [extras]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]

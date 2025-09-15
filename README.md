@@ -9,6 +9,17 @@ See minimum working example workflow in `examples/`.
 
 ## Development
 
+### Installation
+
+In your Julia global environment (starting Julia with `julia`, no `--project`),
+
+```julia
+using Pkg
+Pkg.add("Revise")
+Pkg.add("TestEnv")
+using Revise
+```
+
 ### Add data
 
 To add data, clone the `ARPST-UniMelb/NEM-reliability-suite`
@@ -35,14 +46,12 @@ cp -r NEM-reliability-suite/data/nem12-updated-arrow data/nem12-arrow
 ```
 -->
 
-### Installation
+### Start
 
 ```julia
 using Pkg
 Pkg.activate(".")
 Pkg.instantiate()
-Pkg.add("Revise")
-using Revise
 ```
 
 ### Test
@@ -54,7 +63,12 @@ using Revise
 using Pkg
 
 Pkg.activate(".")
+Pkg.resolve()
 Pkg.instantiate()
 Pkg.precompile()
 Pkg.test()
 ```
+
+### Benchmark
+
+run `bench/run_benchmark.jl`.
