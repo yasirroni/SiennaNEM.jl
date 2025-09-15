@@ -139,6 +139,7 @@ function create_system!(data)
     #   1. RenewableDispatch and RenewableNonDispatch is free (cvar == 0)
     #   2. ThermalStandard only single linear curve
 
+    # TODO: to improve speed, detect and operate !ENV_HYDRORES_AS_THERMAL outside the loop
     for row in eachrow(df_generator)
         if row.DataType === missing || row.capacity == 0
             # NOTE:
@@ -177,7 +178,7 @@ function create_system!(data)
                         shut_down = row.shut_down_cost,
                     ),
                     base_power=row.pmax, # MVA
-                    time_limits=nothing, # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
+                    time_limits=(up= row.up_time, down=row.down_time), # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
                     must_run=false,
                     prime_mover_type=row.PrimeMovers,
                     fuel=row.ThermalFuels,
@@ -206,7 +207,7 @@ function create_system!(data)
                         ramp_limits=(up=row.rdw / row.pmax, down=row.rup / row.pmax),
                         operation_cost=HydroGenerationCost(nothing),
                         base_power=row.pmax, # MVA
-                        time_limits=nothing, # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
+                        time_limits=(up= row.up_time, down=row.down_time), # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
                         prime_mover_type=row.PrimeMovers,
                     )
                     generators[id][i] = gen
@@ -237,7 +238,7 @@ function create_system!(data)
                             shut_down = 0.0,
                         ),
                         base_power=row.pmax, # MVA
-                        time_limits=nothing, # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
+                        time_limits=(up= row.up_time, down=row.down_time), # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
                         must_run=false,
                         prime_mover_type=PrimeMovers.GT,  # Gas Turbine to show fast ramp
                         fuel=ThermalFuels.OTHER,  # other, using water
@@ -276,7 +277,7 @@ function create_system!(data)
                             shut_down = 0.0,
                         ),
                         base_power=row.pmax, # MVA
-                        time_limits=nothing, # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
+                        time_limits=(up= row.up_time, down=row.down_time), # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
                         must_run=false,
                         prime_mover_type=PrimeMovers.GT,  # Gas Turbine to show fast ramp
                         fuel=ThermalFuels.OTHER,  # other, using water
