@@ -173,14 +173,16 @@ function create_system!(data)
                             value_curve=LinearCurve(row.cvar),
                         ),
                         fixed = 0.0,
-                        start_up = 0.0,
-                        shut_down = 0.0,
+                        start_up = row.start_up_cost,
+                        shut_down = row.shut_down_cost,
                     ),
                     base_power=row.pmax, # MVA
                     time_limits=nothing, # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
                     must_run=false,
                     prime_mover_type=row.PrimeMovers,
                     fuel=row.ThermalFuels,
+                    # services=,
+                    # time_at_status=,
                 )
                 generators[id][i] = gen
                 thermal_generators[id][i] = gen
