@@ -11,3 +11,6 @@
 # data
 data/
 NEM-reliability-suite.git/
+
+# result
+bench/imgs/

@@ -16,8 +16,8 @@ results = bench_all(DATA_DIRS; samples=10, seconds=5)
 # Prepare a summary table
 summary = DataFrame(
     Format=String[],
-    Operation=String[],
-    MedianMs=Float64[]
+    operation=String[],
+    median_ms=Float64[]
 )
 
 for (fmt, group) in results

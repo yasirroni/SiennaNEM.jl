@@ -2,6 +2,8 @@ using SiennaNEM
 using DataFrames
 using Dates
 using Plots
+using Printf
+
 include("bench_horizon.jl")
 
 # --- Input paths ---
@@ -18,9 +20,9 @@ results = bench_horizon_all(
 
 # --- Build df table ---
 df = DataFrame(
-    HorizonHours=Int[],
-    Operation=String[],
-    MedianMs=Float64[]
+    horizon_hour=Int[],
+    operation=String[],
+    median_ms=Float64[]
 )
 
 for (h_hrs, group) in results
@@ -40,13 +42,13 @@ for (h_hrs, group) in results
 end
 
 # sort first
-sort!(df, :HorizonHours)
+sort!(df, :horizon_hour)
 
 ops = ["model", "build", "solve", "total"]
 plots = []
 for op in ops
-    subdf = filter(:Operation => ==(op), df)
-    p = plot(subdf.HorizonHours, subdf.MedianMs;
+    subdf = filter(:operation => ==(op), df)
+    p = plot(subdf.horizon_hour, subdf.median_ms;
              xlabel="Horizon (hours)", ylabel="Median time (ms)",
              title=op, lw=2, marker=:circle,
              yscale=(op == "model" ? :identity : :log10))
@@ -56,7 +58,14 @@ end
 plt = plot(plots..., layout=(2,2), size=(900,600))
 display(plt)
 
-df_stage = filter(:Operation => op -> op ∈ ["model", "build", "solve"], df)
-df_wide = unstack(df_stage, :Operation, :MedianMs)
+imgs_dir = "bench/imgs"
+mkpath(imgs_dir)
+savefig(plt, joinpath(imgs_dir, "bench_horizon.png"))
 
-println(df_wide)
+df_stage = filter(:operation => op -> op ∈ ["model", "build", "solve"], df)
+df_wide = unstack(df_stage, :operation, :median_ms)
+
+df_wide.solve_min = round.(df_wide.solve ./ 60000, digits=2)
+rename!(df_wide, :solve => :solve_ms)
+show(IOContext(stdout, :compact => false, :scientific => false), df_wide)
+
