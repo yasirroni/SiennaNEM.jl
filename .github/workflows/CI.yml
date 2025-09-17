@@ -59,7 +59,10 @@ jobs:
         if: ${{ env.DATA_MODE == 'full' }}
         run: |
           rm -rf ./data/nem12 || true
-          cp -r NEM-reliability-suite/data/nem12 ./data/
+          mkdir -p data/nem12/csv
+          mkdir -p data/nem12/arrow
+          cp -r NEM-reliability-suite/data/csv/* data/nem12/csv/
+          cp -r NEM-reliability-suite/data/arrow/* data/nem12/arrow/
           echo "nem12 data copied successfully"
 
       # Show mode in logs
