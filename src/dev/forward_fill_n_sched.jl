@@ -20,20 +20,32 @@ function forward_fill!(df, exclude_cols=[:date])
     end
 end
 
-system_data_dir = "data/nem12"
+system_data_dir = "data/nem12/arrow"
 ts_data_dir = joinpath(system_data_dir, "schedule-1w")
-generator_n_sched_path = joinpath(ts_data_dir, "Generator_n_sched.csv")
-generator_path = joinpath(system_data_dir, "Generator.csv")
+data = read_system_data(system_data_dir)
+read_ts_data!(data, ts_data_dir)
 
-df_gen = CSV.read(generator_path, DataFrame)
-df_ts = CSV.read(generator_n_sched_path, DataFrame)
-preprocess_date!(df_ts)
-sort!(df_ts, :date)
+df_bus = data["bus"]
+df_generator = data["generator"]
+df_line = data["line"]
+df_demand = data["demand"]
+df_storage = data["storage"]
+
+df_demand_l_ts = data["demand_l_ts"]
+df_generator_pmax_ts = data["generator_pmax_ts"]
+df_generator_n_ts = data["generator_n_ts"]
+df_der_p_ts = data["der_p_ts"]
+df_storage_emax_ts = data["storage_emax_ts"]
+df_storage_lmax_ts = data["storage_lmax_ts"]
+df_storage_n_ts = data["storage_n_ts"]
+df_storage_pmax_ts = data["storage_pmax_ts"]
+df_line_tmax_ts = data["line_tmax_ts"]
+df_line_tmin_ts = data["line_tmin_ts"]
 
 # initial n data
-df_gen[:, [:id_gen, :n]]
-gen_ids = string.(df_gen.id_gen)
-gen_ns = df_gen.n
+df_generator[:, [:id_gen, :n]]
+gen_ids = string.(df_generator.id_gen)
+gen_ns = df_generator.n
 df_init = DataFrame(Dict(zip(gen_ids, gen_ns)))
 
 date_start = DateTime(2024, 1, 1)
@@ -42,18 +54,17 @@ scenario = 1
 
 # NOTE: I haven't test the select last before selected
 df_ts_before_selected = filter(
-    row -> row.date < date_start
-        && row.scenario == scenario,
-    df_ts
+    row -> row.date < date_start && row.scenario == scenario,
+    df_generator_n_ts
 )
 df_ts_before_selected = combine(groupby(df_ts_before_selected, :id_gen)) do group
-    group[end, :]
+    subset(group, :date => x -> x .== maximum(x))
 end
 df_ts_selected = filter(
     row -> row.date >= date_start
         && row.date <= date_end
         && row.scenario == scenario,
-    df_ts
+    df_generator_n_ts
 )
 println(df_ts_before_selected)
 println(df_ts_selected)
