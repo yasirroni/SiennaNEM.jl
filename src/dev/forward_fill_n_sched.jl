@@ -53,7 +53,7 @@ gen_ids = string.(df_static.id_gen)
 gen_ns = df_static.n
 df_init = DataFrame(Dict(zip(gen_ids, gen_ns)))
 
-date_start = DateTime(2024, 1, 1)
+date_start = DateTime(2019, 1, 1)
 date_end = DateTime(2025, 1, 1)
 scenario = 1
 
@@ -62,14 +62,19 @@ df_ts_before_selected = filter(
     row -> row.date < date_start && row.scenario == scenario,
     df_ts
 )
-df_ts_before_selected = combine(groupby(df_ts_before_selected, :id_gen)) do group
-    subset(group, :date => x -> x .== maximum(x))
-end
 
 # update df_init with df_ts_before_selected
-ids_update = string.(df_ts_before_selected.id_gen)
-gen_values_update = df_ts_before_selected.value
-df_init[1, ids_update] .= gen_values_update
+if nrow(df_ts_before_selected) > 0
+    # get latest on before date
+    df_ts_before_selected = combine(groupby(df_ts_before_selected, :id_gen)) do group
+        subset(group, :date => x -> x .== maximum(x))
+    end
+
+    # update init using latest
+    ids_update = string.(df_ts_before_selected.id_gen)
+    gen_values_update = df_ts_before_selected.value
+    df_init[1, ids_update] .= gen_values_update
+end
 
 # pre-allocate df
 date_range = collect(date_start:Hour(1):date_end)
@@ -100,6 +105,10 @@ end
 
 # forward fill
 forward_fill!(df_ts_out)
+
+# for debug
+println(df_ts_before_selected)
+println(df_ts_selected)
 
 # Calculate the datetime range for display
 target_datetime = DateTime("2024-02-01T00:00:00")
