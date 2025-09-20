@@ -1,14 +1,14 @@
 function add_ts!(
     sys, data; 
-    horizon=nothing,    # auto-detect from data["demand_ts"] if nothing
-    interval=nothing,   # auto-detect from data["demand_ts"] if nothing
+    horizon=nothing,    # auto-detect from data["demand_l_ts"] if nothing
+    interval=nothing,   # auto-detect from data["demand_l_ts"] if nothing
     scenario_name=1
 )
     # TODO: use multiple scenarios as mentioned in
     #   https://nrel-sienna.github.io/PowerSystems.jl/stable/explanation/time_series/#Forecasts
     df_generator = data["generator"]
-    df_demand_ts = data["demand_ts"]
-    df_generator_ts = data["generator_ts"]
+    df_demand_ts = data["demand_l_ts"]
+    df_generator_ts = data["generator_pmax_ts"]
     renewable_dispatch_generators = data["components"]["renewable_dispatch_generators"]
     renewable_nondispatch_generators = data["components"]["renewable_nondispatch_generators"]
     demands = data["components"]["demands"]
@@ -53,8 +53,8 @@ function add_ts!(
         interval, # interval, for example Dates.Minute(60)
     );
 
-    data["generator_ts"] = df_generator_ts
-    data["demand_ts"] = df_demand_ts
+    data["generator_pmax_ts"] = df_generator_ts
+    data["demand_l_ts"] = df_demand_ts
 end
 
 # TODO:

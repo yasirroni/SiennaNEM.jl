@@ -29,8 +29,16 @@ end
 
 function read_ts_data!(data::Dict{String,Any}, data_dir::AbstractString)
     files = Dict(
-        "demand_ts"    => "Demand_load_sched",
-        "generator_ts" => "Generator_pmax_sched",
+        "demand_l_ts"    => "Demand_load_sched",
+        "generator_pmax_ts" => "Generator_pmax_sched",
+        "generator_n_ts" => "Generator_n_sched",
+        "der_p_ts"=> "DER_pred_sched",
+        "storage_emax_ts"=> "ESS_emax_sched",
+        "storage_lmax_ts"=> "ESS_lmax_sched",
+        "storage_n_ts"=> "ESS_n_sched",
+        "storage_pmax_ts"=> "ESS_pmax_sched",
+        "line_tmax_ts"=> "Line_tmax_sched",
+        "line_tmin_ts"=> "Line_tmin_sched",
     )
 
     for (k, fname) in files

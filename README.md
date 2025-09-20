@@ -20,6 +20,13 @@ Pkg.add("TestEnv")
 using Revise
 ```
 
+Install [`PISP.jl`](https://github.com/ARPST-UniMelb/PISP.jl#),
+
+```julia
+using Pkg
+Pkg.develop(path="../PISP.jl")
+```
+
 ### Add data
 
 To add data, clone the `ARPST-UniMelb/NEM-reliability-suite`

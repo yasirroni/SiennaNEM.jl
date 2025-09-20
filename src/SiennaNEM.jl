@@ -4,6 +4,7 @@ using PowerSystems
 using DataFrames
 using CSV
 using Arrow
+using PISP
 
 const PSY = PowerSystems
 const DF = DataFrames
