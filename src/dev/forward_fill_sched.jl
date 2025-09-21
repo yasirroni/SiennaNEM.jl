@@ -82,7 +82,6 @@ function get_full_ts_df(
     date_end::DateTime;
     interval::Period=Dates.Hour(1)
 )::DataFrame
-
     # NOTE: if needed, this can be further optimized by pre-allocate with values
 
     # Create initial data
@@ -127,15 +126,16 @@ function get_full_ts_df(
         df_ts
     )
 
+    # TODO: in df_ts_full, the one that actually need forward fill and is names in df_ts_selected
     for row in eachrow(df_ts_selected)
-        gen_id_col::String = string(row[id_col])  # Convert id to string (column name)
+        id_col_str::String = string(row[id_col])  # Convert id to string (column name)
 
         # Find the row index where datetime matches exactly
         date_idx = findfirst(==(row.date), df_ts_full.date)
 
         # Update the value if both column and row exist
-        if !isnothing(date_idx) && gen_id_col in col_names
-            df_ts_full[date_idx, gen_id_col] = row.value
+        if !isnothing(date_idx) && id_col_str in col_names
+            df_ts_full[date_idx, id_col_str] = row.value
         end
     end
 

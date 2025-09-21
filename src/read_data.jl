@@ -62,3 +62,37 @@ end
 function add_datatype_col!(df)
     transform!(df, :tech => ByRow(t -> tech_to_datatype[t]) => :DataType)
 end
+
+# function add_tsf_data!(
+#     data::Dict{String,Any},
+#     scenario_name=1,
+#     date_start,
+#     date_end,
+# )
+#     df_demand_l_ts = data["demand_l_ts"]
+#     df_generator_pmax_ts = data["generator_pmax_ts"]
+#     df_generator_n_ts = data["generator_n_ts"]
+#     df_der_p_ts = data["der_p_ts"]
+#     df_storage_emax_ts = data["storage_emax_ts"]
+#     df_storage_lmax_ts = data["storage_lmax_ts"]
+#     df_storage_n_ts = data["storage_n_ts"]
+#     df_storage_pmax_ts = data["storage_pmax_ts"]
+#     df_line_tmax_ts = data["line_tmax_ts"]
+#     df_line_tmin_ts = data["line_tmin_ts"]
+
+#     df_generator_ts = data["generator_pmax_ts"]
+#     time_unit = (T=Hour, L=1)
+#     date_start = DateTime("2044-07-01T00:00:00")
+#     date_end = DateTime("2044-07-01T23:00:00")
+
+#     # Scenario
+#     data["generator_n_tsf"] = get_full_ts_df(
+#         df_generator, df_generator_n_ts, "id_gen", "n", scenario_name, date_start, date_end
+#     )
+#     data["generator_pmax_tsf"] = get_full_ts_df(
+#         df_generator, df_generator_pmax_ts, "id_gen", "pmax", scenario_name, date_start, date_end
+#     )
+# end
+
+# function update_system_data_bound!(data::Dict{String,Any})
+# end

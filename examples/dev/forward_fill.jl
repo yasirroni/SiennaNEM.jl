@@ -54,10 +54,11 @@ date_end = DateTime(2044, 7, 2)
 
 # Scenario
 scenario = 1
+interval = Dates.Hour(1)
 
 # Create time series
 df_ts_full = get_full_ts_df(
-    df_static, df_ts, id_col, col_ref, scenario, date_start, date_end
+    df_static, df_ts, id_col, col_ref, scenario, date_start, date_end, interval,
 )
 
 # Calculate the datetime range for display

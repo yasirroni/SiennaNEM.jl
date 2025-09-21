@@ -26,22 +26,6 @@ function create_system!(data)
     df_demand = data["demand"]
     df_storage = data["storage"]
 
-    df_demand_l_ts = data["demand_l_ts"]
-    df_generator_pmax_ts = data["generator_pmax_ts"]
-    df_generator_n_ts = data["generator_n_ts"]
-    df_der_p_ts = data["der_p_ts"]
-    df_storage_emax_ts = data["storage_emax_ts"]
-    df_storage_lmax_ts = data["storage_lmax_ts"]
-    df_storage_n_ts = data["storage_n_ts"]
-    df_storage_pmax_ts = data["storage_pmax_ts"]
-    df_line_tmax_ts = data["line_tmax_ts"]
-    df_line_tmin_ts = data["line_tmin_ts"]
-
-    df_generator_ts = data["generator_pmax_ts"]
-    time_unit = (T=Hour, L=1)
-    start_dt = DateTime("2044-07-01T00:00:00")
-    end_dt = DateTime("2044-07-01T00:00:00")
-
     baseMVA = 100
     sys = PSY.System(baseMVA)
     set_units_base_system!(sys, "SYSTEM_BASE") # for p.u.
