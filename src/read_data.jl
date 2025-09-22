@@ -125,18 +125,23 @@ function add_tsf_data!(
 end
 
 function update_system_data_bound!(data::Dict{String,Any})
+    # TODO: update to capacity and profile separately if the new data available
     df_generator = data["generator"]
     df_storage = data["storage"]
     df_line = data["line"]
 
+    ids_gen_nvre = findall(x -> x ∉ ["Solar", "Wind"], data["generator"].fuel)
     df_generator[!, "n"] = Matrix(data["generator_n_tsf"][!, Not(:date)])[end, :]
-    # df_generator[!, "pmax"] = Matrix(data["generator_pmax_tsf"][!, Not(:date)])[end, :]
+    df_generator[!, "pmax"] = Vector(data["generator"].pmax)
+    df_generator[ids_gen_nvre, "pmax"] = Matrix(data["generator_pmax_tsf"][!, string.(ids_gen_nvre)])[end, :]
+
     df_storage[!, "emax"] = Matrix(data["storage_emax_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "lmax"] = Matrix(data["storage_lmax_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "emax"] = Matrix(data["storage_emax_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "lmax"] = Matrix(data["storage_lmax_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "n"] = Matrix(data["storage_n_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "pmax"] = Matrix(data["storage_pmax_tsf"][!, Not(:date)])[end, :]
+
     df_line[!, "tmax"] = Matrix(data["line_tmax_tsf"][!, Not(:date)])[end, :]
     df_line[!, "tmin"] = Matrix(data["line_tmin_tsf"][!, Not(:date)])[end, :]
 end
