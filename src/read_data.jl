@@ -1,10 +1,11 @@
 function read_system_data(data_dir::AbstractString)
     files = Dict(
-        "bus"       => "Bus",
+        "bus" => "Bus",
+        "demand" => "Demand",
+        "der" => "DER",
+        "storage" => "ESS",
         "generator" => "Generator",
-        "line"      => "Line",
-        "demand"    => "Demand",
-        "storage"   => "ESS"
+        "line" => "Line",
     )
 
     data = Dict{String,Any}()
@@ -29,16 +30,16 @@ end
 
 function read_ts_data!(data::Dict{String,Any}, data_dir::AbstractString)
     files = Dict(
-        "demand_l_ts"    => "Demand_load_sched",
+        "demand_l_ts" => "Demand_load_sched",
         "generator_pmax_ts" => "Generator_pmax_sched",
         "generator_n_ts" => "Generator_n_sched",
-        "der_p_ts"=> "DER_pred_sched",
-        "storage_emax_ts"=> "ESS_emax_sched",
-        "storage_lmax_ts"=> "ESS_lmax_sched",
-        "storage_n_ts"=> "ESS_n_sched",
-        "storage_pmax_ts"=> "ESS_pmax_sched",
-        "line_tmax_ts"=> "Line_tmax_sched",
-        "line_tmin_ts"=> "Line_tmin_sched",
+        "der_p_ts" => "DER_pred_sched",
+        "storage_emax_ts" => "ESS_emax_sched",
+        "storage_lmax_ts" => "ESS_lmax_sched",
+        "storage_n_ts" => "ESS_n_sched",
+        "storage_pmax_ts" => "ESS_pmax_sched",
+        "line_tmax_ts" => "Line_tmax_sched",
+        "line_tmin_ts" => "Line_tmin_sched",
     )
 
     for (k, fname) in files
@@ -63,36 +64,79 @@ function add_datatype_col!(df)
     transform!(df, :tech => ByRow(t -> tech_to_datatype[t]) => :DataType)
 end
 
-# function add_tsf_data!(
-#     data::Dict{String,Any},
-#     scenario_name=1,
-#     date_start,
-#     date_end,
-# )
-#     df_demand_l_ts = data["demand_l_ts"]
-#     df_generator_pmax_ts = data["generator_pmax_ts"]
-#     df_generator_n_ts = data["generator_n_ts"]
-#     df_der_p_ts = data["der_p_ts"]
-#     df_storage_emax_ts = data["storage_emax_ts"]
-#     df_storage_lmax_ts = data["storage_lmax_ts"]
-#     df_storage_n_ts = data["storage_n_ts"]
-#     df_storage_pmax_ts = data["storage_pmax_ts"]
-#     df_line_tmax_ts = data["line_tmax_ts"]
-#     df_line_tmin_ts = data["line_tmin_ts"]
+function add_tsf_data!(
+    data::Dict{String,Any};
+    scenario_name=1,
+    date_start=nothing,
+    date_end=nothing,
+)
+    # TODO:
+    #   What is DER?
+    #   Which data always full already?
+    #   Request data["generator_pmax_ts"] to change only the capacity, not trace of RE
 
-#     df_generator_ts = data["generator_pmax_ts"]
-#     time_unit = (T=Hour, L=1)
-#     date_start = DateTime("2044-07-01T00:00:00")
-#     date_end = DateTime("2044-07-01T23:00:00")
+    # NOTE: we assume row number equal with id_ for speed
 
-#     # Scenario
-#     data["generator_n_tsf"], col_names_affected = get_full_ts_df(
-#         df_generator, df_generator_n_ts, "id_gen", "n", scenario_name, date_start, date_end
-#     )
-#     data["generator_pmax_tsf"], col_names_affected = get_full_ts_df(
-#         df_generator, df_generator_pmax_ts, "id_gen", "pmax", scenario_name, date_start, date_end
-#     )
-# end
+    df_generator = data["generator"]
+    df_storage = data["storage"]
+    df_line = data["line"]
 
-# function update_system_data_bound!(data::Dict{String,Any})
-# end
+    # df_demand_l_ts = data["demand_l_ts"]
+    df_generator_pmax_ts = data["generator_pmax_ts"]
+    df_generator_n_ts = data["generator_n_ts"]
+    # df_der_p_ts = data["der_p_ts"]
+    df_storage_emax_ts = data["storage_emax_ts"]
+    df_storage_lmax_ts = data["storage_lmax_ts"]
+    df_storage_n_ts = data["storage_n_ts"]
+    df_storage_pmax_ts = data["storage_pmax_ts"]
+    df_line_tmax_ts = data["line_tmax_ts"]
+    df_line_tmin_ts = data["line_tmin_ts"]
+
+    # TODO:
+    # if date_start == nothing, get from df_demand_l_ts min, date_end use max.
+
+    # Scenario
+    data["generator_n_tsf"], _ = get_full_ts_df(
+        df_generator, df_generator_n_ts, "id_gen", "n", scenario_name, date_start, date_end
+    )
+    data["generator_pmax_tsf"], _ = get_full_ts_df(
+        df_generator, df_generator_pmax_ts, "id_gen", "pmax", scenario_name, date_start, date_end
+    )
+
+    data["storage_emax_tsf"], _ = get_full_ts_df(
+        df_storage, df_storage_emax_ts, "id_ess", "emax", scenario_name, date_start, date_end
+    )
+    data["storage_lmax_tsf"], _ = get_full_ts_df(
+        df_storage, df_storage_lmax_ts, "id_ess", "lmax", scenario_name, date_start, date_end
+    )
+    data["storage_n_tsf"], _ = get_full_ts_df(
+        df_storage, df_storage_n_ts, "id_ess", "n", scenario_name, date_start, date_end
+    )
+    data["storage_pmax_tsf"], _ = get_full_ts_df(
+        df_storage, df_storage_pmax_ts, "id_ess", "pmax", scenario_name, date_start, date_end
+    )
+
+    data["line_tmax_tsf"], _ = get_full_ts_df(
+        df_line, df_line_tmax_ts, "id_lin", "tmax", scenario_name, date_start, date_end
+    )
+    data["line_tmin_tsf"], _ = get_full_ts_df(
+        df_line, df_line_tmin_ts, "id_lin", "tmin", scenario_name, date_start, date_end
+    )
+end
+
+function update_system_data_bound!(data::Dict{String,Any})
+    df_generator = data["generator"]
+    df_storage = data["storage"]
+    df_line = data["line"]
+
+    df_generator[!, "n"] = Matrix(data["generator_n_tsf"][!, Not(:date)])[end, :]
+    df_generator[!, "pmax"] = Matrix(data["generator_pmax_tsf"][!, Not(:date)])[end, :]
+    df_storage[!, "emax"] = Matrix(data["storage_emax_tsf"][!, Not(:date)])[end, :]
+    df_storage[!, "lmax"] = Matrix(data["storage_lmax_tsf"][!, Not(:date)])[end, :]
+    df_storage[!, "emax"] = Matrix(data["storage_emax_tsf"][!, Not(:date)])[end, :]
+    df_storage[!, "lmax"] = Matrix(data["storage_lmax_tsf"][!, Not(:date)])[end, :]
+    df_storage[!, "n"] = Matrix(data["storage_n_tsf"][!, Not(:date)])[end, :]
+    df_storage[!, "pmax"] = Matrix(data["storage_pmax_tsf"][!, Not(:date)])[end, :]
+    df_line[!, "tmax"] = Matrix(data["line_tmax_tsf"][!, Not(:date)])[end, :]
+    df_line[!, "tmin"] = Matrix(data["line_tmin_tsf"][!, Not(:date)])[end, :]
+end

@@ -86,10 +86,9 @@ function get_full_ts_df(
 )::Tuple{DataFrame, Vector{String}}
 
     # Create initial data
-    id_col_val::Vector{String} = string.(df_static[!, id_col])
-    col_ref_val = df_static[!, col_ref]
-    df_init = DataFrame(Dict(zip(id_col_val, col_ref_val)))
-    col_names::Vector{String} = names(df_init)
+    col_names::Vector{String} = string.(df_static[!, id_col])
+    col_ref_val = df_static[!, col_ref]'
+    df_init = DataFrame(col_ref_val, col_names)
 
     # Get data before selected period
     df_ts_before_selected::DataFrame = filter(
