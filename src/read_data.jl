@@ -130,7 +130,7 @@ function update_system_data_bound!(data::Dict{String,Any})
     df_line = data["line"]
 
     df_generator[!, "n"] = Matrix(data["generator_n_tsf"][!, Not(:date)])[end, :]
-    df_generator[!, "pmax"] = Matrix(data["generator_pmax_tsf"][!, Not(:date)])[end, :]
+    # df_generator[!, "pmax"] = Matrix(data["generator_pmax_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "emax"] = Matrix(data["storage_emax_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "lmax"] = Matrix(data["storage_lmax_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "emax"] = Matrix(data["storage_emax_tsf"][!, Not(:date)])[end, :]
