@@ -1,6 +1,7 @@
 using Test
 using SiennaNEM
 using PowerSystems
+using Dates
 
 const PSY = PowerSystems
 
@@ -43,7 +44,15 @@ function test_system_creation(system_data_dir::String, backend::String)
         @test isempty(missing_keys_ts_data) || error("Missing timeseries data keys: $(missing_keys_ts_data)")
     end
 
-    sys = nothing
+    scenario_name = 1
+    date_start = DateTime("2025-01-07T00:00:00")
+    date_end = DateTime("2025-01-23T00:00:00")
+    add_tsf_data!(data, scenario_name=scenario_name, date_start=date_start, date_end=date_end)
+    update_system_data_bound!(data)
+    @testset "[$(backend)] Add tsf and update bound" begin
+        # TODO: test add tsf and update bound
+    end
+
     sys = create_system!(data)
     @testset "[$(backend)] Create system" begin
         system_keys = [

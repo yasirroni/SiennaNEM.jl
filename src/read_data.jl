@@ -71,8 +71,6 @@ function add_tsf_data!(
     date_end=nothing,
 )
     # TODO:
-    #   What is DER?
-    #   Which data always full already?
     #   Request data["generator_pmax_ts"] to change only the capacity, not trace of RE
 
     # NOTE: we assume row number equal with id_ for speed
@@ -96,30 +94,30 @@ function add_tsf_data!(
     # if date_start == nothing, get from df_demand_l_ts min, date_end use max.
 
     # Scenario
-    data["generator_n_tsf"], _ = get_full_ts_df(
+    data["generator_n_tsf"] = get_full_ts_df(
         df_generator, df_generator_n_ts, "id_gen", "n", scenario_name, date_start, date_end
     )
-    data["generator_pmax_tsf"], _ = get_full_ts_df(
+    data["generator_pmax_tsf"] = get_full_ts_df(
         df_generator, df_generator_pmax_ts, "id_gen", "pmax", scenario_name, date_start, date_end
     )
 
-    data["storage_emax_tsf"], _ = get_full_ts_df(
+    data["storage_emax_tsf"] = get_full_ts_df(
         df_storage, df_storage_emax_ts, "id_ess", "emax", scenario_name, date_start, date_end
     )
-    data["storage_lmax_tsf"], _ = get_full_ts_df(
+    data["storage_lmax_tsf"] = get_full_ts_df(
         df_storage, df_storage_lmax_ts, "id_ess", "lmax", scenario_name, date_start, date_end
     )
-    data["storage_n_tsf"], _ = get_full_ts_df(
+    data["storage_n_tsf"] = get_full_ts_df(
         df_storage, df_storage_n_ts, "id_ess", "n", scenario_name, date_start, date_end
     )
-    data["storage_pmax_tsf"], _ = get_full_ts_df(
+    data["storage_pmax_tsf"] = get_full_ts_df(
         df_storage, df_storage_pmax_ts, "id_ess", "pmax", scenario_name, date_start, date_end
     )
 
-    data["line_tmax_tsf"], _ = get_full_ts_df(
+    data["line_tmax_tsf"] = get_full_ts_df(
         df_line, df_line_tmax_ts, "id_lin", "tmax", scenario_name, date_start, date_end
     )
-    data["line_tmin_tsf"], _ = get_full_ts_df(
+    data["line_tmin_tsf"] = get_full_ts_df(
         df_line, df_line_tmin_ts, "id_lin", "tmin", scenario_name, date_start, date_end
     )
 end
