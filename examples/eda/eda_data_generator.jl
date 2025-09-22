@@ -34,3 +34,7 @@ unique(data["generator"][data["generator"].n .> 1, :DataType])
 #  ThermalStandard
 #  HydroDispatch
 #  HydroEnergyReservoir
+
+# get generator with fuel that is not "Solar" or "Wind"
+ids_gen_nvre = findall(x -> x ∉ ["Solar", "Wind"], data["generator"].fuel)
+data["generator_pmax_tsf"][!, string.(ids_gen_nvre)]
