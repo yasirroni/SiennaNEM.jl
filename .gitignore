@@ -15,3 +15,4 @@ NEM-reliability-suite.git/
 # result
 examples/result/**/*.h5
 bench/imgs/
+*h5
