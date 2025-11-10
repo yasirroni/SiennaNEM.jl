@@ -19,10 +19,12 @@ sys = create_system!(data)
 add_ts!(sys, data, scenario_name=scenario_name)
 
 template_uc = SiennaNEM.build_problem_base_uc()
-solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.5)
+solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 
 hours = Hour(24)
 problem = DecisionModel(template_uc, sys; optimizer=solver, horizon=hours)
 build!(problem; output_dir=mktempdir())
 solve!(problem)
 res = OptimizationProblemResults(problem)
+
+objective_value = get_objective_value(res)
