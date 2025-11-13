@@ -22,7 +22,11 @@ template_uc = SiennaNEM.build_problem_base_uc()
 solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 
 hours = Hour(24)
-problem = DecisionModel(template_uc, sys; optimizer=solver, horizon=hours)
+problem = DecisionModel(
+    template_uc, sys;
+    optimizer=solver,
+    horizon=hours
+)
 build!(problem; output_dir=mktempdir())
 solve!(problem)
 res = OptimizationProblemResults(problem)

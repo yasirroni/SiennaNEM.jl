@@ -9,6 +9,33 @@ See minimum working example workflow in `examples/`.
 
 ## Development
 
+### Add data
+
+To add data, clone the `ARPST-UniMelb/NEM-reliability-suite`
+
+```sh
+git clone git@github.com:ARPST-UniMelb/NEM-reliability-suite.git
+```
+
+If you already clone it, pull to update to the latest data
+
+```sh
+cd NEM-reliability-suite
+git pull
+git lfs pull
+cd ..
+mkdir -p data
+cp -r NEM-reliability-suite/data/ data/nem12
+```
+
+<!-- 
+To delete `data/nem12`,
+
+```sh
+rm -rf data/nem12
+```
+-->
+
 ### Installation
 
 In your Julia global environment (starting Julia with `julia`, no `--project`),
@@ -26,29 +53,6 @@ Install [`PISP.jl`](https://github.com/ARPST-UniMelb/PISP.jl#),
 using Pkg
 Pkg.develop(path="../PISP.jl")
 ```
-
-### Add data
-
-To add data, clone the `ARPST-UniMelb/NEM-reliability-suite`
-
-```sh
-git clone git@github.com:ARPST-UniMelb/NEM-reliability-suite.git
-```
-
-If you already clone it, pull to update to the latest data
-
-```sh
-cd NEM-reliability-suite
-git pull
-cd ..
-cp -r NEM-reliability-suite/data/ data/nem12
-```
-
-<!-- 
-```sh
-rm -rf data/nem12
-```
--->
 
 ### Start
 
