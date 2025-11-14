@@ -7,7 +7,6 @@ using Dates
 
 # Parameters for the decision model
 horizon = Hour(24)
-initial_time = minimum(data["demand_l_ts"][!, "date"])
 
 # Add time series data to the system
 add_ts!(sys, data, scenario_name=scenario_name)
@@ -17,7 +16,6 @@ problem = DecisionModel(
     template_uc, sys;
     optimizer=solver,
     horizon=horizon,
-    initial_time=initial_time,
 )
 build!(problem; output_dir=mktempdir())
 solve!(problem)
