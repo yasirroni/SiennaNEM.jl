@@ -1,19 +1,7 @@
-function add_ts!(
-    sys, data; 
-    horizon=nothing,    # auto-detect from data["demand_l_ts"] if nothing
-    interval=nothing,   # auto-detect from data["demand_l_ts"] if nothing
-    scenario_name=1
-)
-    # TODO: use multiple scenarios as mentioned in
-    #   https://nrel-sienna.github.io/PowerSystems.jl/stable/explanation/time_series/#Forecasts
+function clean_ts_data!(data::Dict{String,Any})
     df_generator = data["generator"]
-    df_demand_ts = data["demand_l_ts"]
     df_generator_ts = data["generator_pmax_ts"]
-    renewable_dispatch_generators = data["components"]["renewable_dispatch_generators"]
-    renewable_nondispatch_generators = data["components"]["renewable_nondispatch_generators"]
-    demands = data["components"]["demands"]
 
-    # read generator ts
     # NOTE: remove missing due to id_gen == 78
     unique_gen_id_ts = unique(df_generator_ts[:, :id_gen]) 
     df_generator_ts_unique_gen_id = DataFrame(id_gen=unique_gen_id_ts)
@@ -24,7 +12,46 @@ function add_ts!(
     df_generator_ts_unique_gen_id = dropmissing(df_generator_ts_unique_gen_id, :name)
     unique_gen_id_ts = df_generator_ts_unique_gen_id[:, :id_gen]
     df_generator_ts = filter(row -> row.id_gen in unique_gen_id_ts, df_generator_ts)
+    data["generator_pmax_ts"] = df_generator_ts
+end
 
+function add_ts!(
+    sys, data; 
+    horizon=nothing,    # auto-detect from data["demand_l_ts"] if nothing
+    interval=nothing,   # auto-detect from data["demand_l_ts"] if nothing
+    scenario_name=1
+)
+    # TODO: use multiple scenarios as mentioned in
+    #   https://nrel-sienna.github.io/PowerSystems.jl/stable/explanation/time_series/#Forecasts
+    df_demand_ts = data["demand_l_ts"]
+    df_generator_ts = data["generator_pmax_ts"]
+    renewable_dispatch_generators = data["components"]["renewable_dispatch_generators"]
+    renewable_nondispatch_generators = data["components"]["renewable_nondispatch_generators"]
+    demands = data["components"]["demands"]
+    add_ts!(
+        sys,
+        df_demand_ts,
+        df_generator_ts,
+        renewable_dispatch_generators,
+        renewable_nondispatch_generators,
+        demands;
+        horizon=horizon,    # auto-detect from data["demand_l_ts"] if nothing
+        interval=interval,   # auto-detect from data["demand_l_ts"] if nothing
+        scenario_name=scenario_name
+    )
+end
+
+function add_ts!(
+    sys,
+    df_demand_ts,
+    df_generator_ts,
+    renewable_dispatch_generators,
+    renewable_nondispatch_generators,
+    demands;
+    horizon=nothing,    # auto-detect from data["demand_l_ts"] if nothing
+    interval=nothing,   # auto-detect from data["demand_l_ts"] if nothing
+    scenario_name=1
+)
     # add demand st
     dfs_demand_ts = groupbyd(df_demand_ts, :scenario)
     dfs_demand_ts_s = groupbyd(dfs_demand_ts[scenario_name], :id_dem)
@@ -52,9 +79,6 @@ function add_ts!(
         horizon, # horizon, for example Dates.Hour(24)
         interval, # interval, for example Dates.Minute(60)
     );
-
-    data["generator_pmax_ts"] = df_generator_ts
-    data["demand_l_ts"] = df_demand_ts
 end
 
 # TODO:
@@ -121,4 +145,37 @@ function add_st!(
         scaling_factor_multiplier=get_max_active_power,
     )
     add_time_series!(sys, values(instances), sts);
+end
+
+function create_time_slices(
+    df::DataFrame;
+    initial_time::DateTime,
+    horizon::Period,
+    window_shift::Period,
+)
+    # Usage:
+    # slices = create_time_slices(
+    #     data["demand_l_ts"],
+    #     initial_time = DateTime("2025-01-07T00:00:00"),
+    #     horizon = Hour(24),
+    #     window_shift = Hour(24),
+    # )
+
+    max_date = maximum(df.date)
+    
+    slices = Dict{DateTime, DataFrame}()
+    current_time = initial_time
+    
+    while current_time < max_date
+        slice_end = current_time + horizon
+        df_slice = filter(row -> current_time <= row.date < slice_end, df)
+        
+        if !isempty(df_slice)
+            slices[current_time] = df_slice
+        end
+        
+        current_time += window_shift
+    end
+    
+    return slices
 end

@@ -70,6 +70,10 @@ function add_tsf_data!(
     date_start=nothing,
     date_end=nothing,
 )
+    # NOTE:
+    # This function create and add time series forward-filled DataFrames to `data` Dict.
+    # This is required because the status data from the raw data is not in full format.
+
     # TODO:
     #   1. Request data["generator_pmax_ts"] to change only the capacity, not trace of RE
     #   2. Implement DER
