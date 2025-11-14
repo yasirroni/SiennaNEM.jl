@@ -153,17 +153,9 @@ function create_time_slices(
     horizon::Period,
     window_shift::Period,
 )
-    # Usage:
-    # slices = create_time_slices(
-    #     data["demand_l_ts"],
-    #     initial_time = DateTime("2025-01-07T00:00:00"),
-    #     horizon = Hour(24),
-    #     window_shift = Hour(24),
-    # )
-
     max_date = maximum(df.date)
     
-    slices = Dict{DateTime, DataFrame}()
+    slices = OrderedDict{DateTime, DataFrame}()
     current_time = initial_time
     
     while current_time < max_date
