@@ -16,4 +16,5 @@ NEM-reliability-suite.git/
 examples/result/
 examples/imgs/
 bench/imgs/
+bench/csv/
 *h5

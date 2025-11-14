@@ -8,45 +8,24 @@ using StorageSystemsSimulations
 using HiGHS
 
 """
-    bench_horizon_setup(data_dir, ts_dir)
+    bench_horizon_setup(system_data_dir, ts_data_dir)
 
 Prepare system, template, and solver once.
 Returns (template_uc, sys, solver).
 """
-function bench_horizon_setup(data_dir::AbstractString, ts_dir::AbstractString)
-    data = read_system_data(data_dir)
-    read_ts_data!(data, ts_dir)
+function bench_horizon_setup(system_data_dir::AbstractString, ts_data_dir::AbstractString)
+    data = read_system_data(system_data_dir)
+    read_ts_data!(data, ts_data_dir)
+    add_tsf_data!(data)
+    update_system_data_bound!(data)
+    clean_ts_data!(data)
+
+    template_uc = SiennaNEM.build_problem_base_uc()
+    solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 
     sys = create_system!(data)
-    add_ts!(sys, data, scenario_name=1)
 
-    template_uc = ProblemTemplate()
-    set_device_model!(template_uc, Line, StaticBranch)
-    set_device_model!(template_uc, ThermalStandard, ThermalStandardUnitCommitment)
-    set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
-    set_device_model!(template_uc, RenewableNonDispatch, FixedOutput)
-    set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
-
-    storage_model = DeviceModel(
-        EnergyReservoirStorage,
-        StorageDispatchWithReserves;
-        attributes=Dict(
-            "reservation" => true,
-            "energy_target" => true,
-            "cycling_limits" => false,
-            "regularization" => false,
-        ),
-        use_slacks=false,
-    )
-    set_device_model!(template_uc, storage_model)
-
-    set_network_model!(
-        template_uc,
-        NetworkModel(NFAPowerModel; use_slacks=true),
-    )
-
-    solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.5)
-
+    add_ts!(sys, data)
     return template_uc, sys, solver
 end
 
@@ -86,16 +65,16 @@ end
 
 
 """
-    bench_horizon_all(data_dir, ts_dir; horizons=[Hour(6), Hour(12), Hour(24)], samples=10, seconds=5)
+    bench_horizon_all(system_data_dir, ts_data_dir; horizons=[Hour(6), Hour(12), Hour(24)], samples=10, seconds=5)
 
 Run model, build, and solve benchmarks across horizons.
 Returns Dict[horizon_hours => Dict("model"=>…, "build"=>…, "solve"=>…)].
 """
-function bench_horizon_all(data_dir::AbstractString, ts_dir::AbstractString;
+function bench_horizon_all(system_data_dir::AbstractString, ts_data_dir::AbstractString;
                            horizons=[Hour(6), Hour(12), Hour(24)],
                            samples=10, seconds=5)
 
-    template_uc, sys, solver = bench_horizon_setup(data_dir, ts_dir)
+    template_uc, sys, solver = bench_horizon_setup(system_data_dir, ts_data_dir)
 
     results = Dict{Int,Dict{String,Any}}()
     for h in horizons
