@@ -573,6 +573,7 @@ function create_system!(data)
         "renewable_dispatch_generators" => renewable_dispatch_generators,
         "renewable_nondispatch_generators" => renewable_nondispatch_generators,
         "hydro_dispatch_generators" => hydro_dispatch_generators,
+        "hydro_energyreservoir_generators" => hydro_energyreservoir_generators,
         "demands" => demands,
         "storages" => storages,
         "battery_storages" => battery_storages,
