@@ -25,6 +25,7 @@ function read_system_data(data_dir::AbstractString)
 
     add_primemover_col!(data["storage"])
     add_datatype_col!(data["storage"])
+
     return data
 end
 
@@ -150,4 +151,19 @@ function update_system_data_bound!(data::Dict{String,Any})
 
     df_line[!, "tmax"] = Matrix(data["line_tmax_tsf"][!, Not(:date)])[end, :]
     df_line[!, "tmin"] = Matrix(data["line_tmin_tsf"][!, Not(:date)])[end, :]
+end
+
+# Extend data["generator"] with unit_id and gen_unit_id columns
+function extend_generator_data(df::DataFrame)
+    return vcat([
+        let
+            n_units = row.n
+            gen_id = row.id_gen
+            df_temp = DataFrame(fill(NamedTuple(row), n_units))
+            df_temp.unit_id = 1:n_units
+            df_temp.gen_unit_id = ["$(gen_id)_$(i)" for i in 1:n_units]
+            df_temp
+        end
+        for row in eachrow(df)
+    ]...)
 end

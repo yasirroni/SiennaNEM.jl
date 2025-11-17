@@ -23,6 +23,7 @@ const ENV_HYDROPUMP_AS_BATTERY = true
 
 # Exported functions and constants
 export read_system_data, read_ts_data!, preprocess_date!, update_system_data_bound!
+export extend_generator_data
 export clean_ts_data!
 export create_system!, add_ts!
 export tech_to_primemover, tech_to_datatype, tech_to_fuel

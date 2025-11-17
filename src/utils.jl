@@ -195,7 +195,11 @@ function sum_by_bus(df::DataFrame, bus_to_col::OrderedDict{Int64, Vector{String}
     df_result = DataFrame()
     for bus in sort(collect(keys(bus_to_col)))
         cols = bus_to_col[bus]
-        df_result[!, string(bus)] = sum(df[!, col] for col in cols)
+        # Filter to only include columns that exist in df
+        existing_cols = filter(col -> hasproperty(df, col), cols)
+        if !isempty(existing_cols)
+            df_result[!, string(bus)] = sum(df[!, col] for col in existing_cols)
+        end
     end
     return df_result
 end
