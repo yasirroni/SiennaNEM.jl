@@ -19,13 +19,25 @@ function read_system_data(data_dir::AbstractString)
         data[k] = df
     end
 
+    # add map
+    bus_to_area = Dict(
+        row.id_bus => row.id_area
+        for row in eachrow(data["bus"][!, [:id_bus, :id_area]])
+    )
+    data["map"] = Dict("bus_to_area" => bus_to_area)
+
+    # add area
+    add_area_df!(data)
+
+    # add columns
     add_fuel_col!(data["generator"])
     add_primemover_col!(data["generator"])
     add_datatype_col!(data["generator"])
+    add_id_area_col!(data["generator"], bus_to_area)
 
     add_primemover_col!(data["storage"])
     add_datatype_col!(data["storage"])
-
+    add_id_area_col!(data["storage"], bus_to_area)
     return data
 end
 
@@ -63,6 +75,10 @@ function add_primemover_col!(df)
 end
 function add_datatype_col!(df)
     transform!(df, :tech => ByRow(t -> tech_to_datatype[t]) => :DataType)
+end
+
+function add_id_area_col!(df, bus_to_area)
+    transform!(df, :id_bus => ByRow(b -> bus_to_area[b]) => :id_area)
 end
 
 function add_tsf_data!(
@@ -166,4 +182,12 @@ function extend_generator_data(df::DataFrame)
         end
         for row in eachrow(df)
     ]...)
+end
+
+function add_area_df!(data)
+    # TODO: properly calculate peak_active_power and peak_reactive_power columns
+    data["area"] = unique(data["bus"][!, [:id_area]])
+    data["area"].name = [area_to_name[id] for id in data["area"].id_area]
+    data["area"].peak_active_power .= 0.0
+    data["area"].peak_reactive_power .= 0.0
 end
