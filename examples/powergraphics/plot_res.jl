@@ -32,7 +32,12 @@ plot_fuel(res; generator_mapping_file="deps/generator_mapping.yml")
 
 # plot demand profile
 plot_demand(res)  # based on result, horizon follow result
+plot_demand(sys, aggregation=PSY.System)  # based on system, full horizon unless specified
+plot_demand(sys, aggregation=PSY.PowerLoad)  # based on system, full horizon unless specified
+plot_demand(sys, aggregation=PSY.PowerLoad, stack=true)  # based on system, full horizon unless specified
 plot_demand(sys, aggregation=PSY.Area)  # based on system, full horizon unless specified
 plot_demand(sys, aggregation=PSY.Area, stack=true)  # based on system, full horizon unless specified
 plot_demand(sys, aggregation=PSY.ACBus)  # based on system, full horizon unless specified
 plot_demand(sys, aggregation=PSY.ACBus, stack=true)  # based on system, full horizon unless specified
+
+# TODO: plot services
