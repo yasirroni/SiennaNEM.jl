@@ -1,19 +1,20 @@
 module SiennaNEM
 
+using DataFrames, Dates, TimeSeries, OrderedCollections
+using CSV, Arrow
+using PlotlyJS
 using PowerSystems
-using DataFrames
-using CSV
-using Arrow
-using OrderedCollections
 
 const PSY = PowerSystems
 const DF = DataFrames
 
-include("const.jl")
-include("read_data.jl")
-include("create_system.jl")
-include("utils.jl")
 include("add_ts.jl")
+include("const.jl")
+include("create_system.jl")
+include("plot.jl")
+include("read_data.jl")
+include("utils.jl")
+
 include("problem/uc.jl")
 include("dev/forward_fill_sched.jl")
 
@@ -38,6 +39,7 @@ export get_map_from_df, get_grouped_map_from_df, get_inverse_map
 export get_bus_to_gen, get_gen_to_bus, get_col_to_group, get_group_to_col
 export sum_by_group, get_component_columns
 export get_full_ts_df, add_tsf_data!
+export plot_stacked
 
 export build_problem_base_uc
 

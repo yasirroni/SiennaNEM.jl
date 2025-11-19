@@ -1,7 +1,4 @@
-using DataFrames, OrderedCollections
-using PlotlyJS
-
-function plot_stacked_area(
+function plot_stacked(
     df::DataFrame,
     id_to_name::Union{OrderedDict, Dict};
     timecol::Symbol=:DateTime,
@@ -55,50 +52,3 @@ function plot_stacked_area(
     
     plot(traces, layout)
 end
-
-# Create bus ID to name mapping
-bus_to_name = get_map_from_df(data["bus"], :id_bus, :name)
-
-# Create output directory for plots
-plots_dir = "examples/result/nem12/plots"
-mkpath(plots_dir)
-
-# Plot generation by bus
-p_pg = plot_stacked_area(
-    dfs_res["post"]["bus_pg"],
-    bus_to_name;
-    timecol=:DateTime,
-    title="Generation by Bus",
-    yaxis_title="Power (MW)",
-)
-savefig(p_pg, joinpath(plots_dir, "bus_pg.png"))
-
-# Plot PFR allocation by bus
-p_pfr = plot_stacked_area(
-    dfs_res["post"]["bus_pfr"],
-    bus_to_name;
-    timecol=:DateTime,
-    title="Primary Frequency Response by Bus",
-    yaxis_title="Reserve Capacity (MW)",
-)
-savefig(p_pfr, joinpath(plots_dir, "bus_pfr.png"))
-
-# Plot generation by area
-p_area_pg = plot_stacked_area(
-    dfs_res["post"]["area_pg"],
-    area_to_name;
-    timecol=:DateTime,
-    title="Generation by Area",
-    yaxis_title="Power (MW)",
-)
-savefig(p_area_pg, joinpath(plots_dir, "area_pg.png"))
-
-# Plot PFR allocation by area
-p_area_pfr = plot_stacked_area(
-    dfs_res["post"]["area_pfr"],
-    area_to_name;
-    timecol=:DateTime,
-    title="Primary Frequency Response by Area", 
-    yaxis_title="Reserve Capacity (MW)",
-)
-savefig(p_area_pfr, joinpath(plots_dir, "area_pfr.png"))

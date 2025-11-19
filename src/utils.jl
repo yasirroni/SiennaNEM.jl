@@ -1,5 +1,3 @@
-using DataFrames, Dates, TimeSeries, OrderedCollections
-
 function add_day!(df)
     transform!(df, :date => ByRow(x -> Date(x)) => :day)
 end

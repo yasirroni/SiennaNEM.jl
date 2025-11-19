@@ -28,8 +28,8 @@ gen_col_to_bus = get_col_to_group(data_cols, gen_to_bus)  # use id_gen + id_unit
 bus_to_gen_col = get_group_to_col(gen_col_to_bus)  # map bus to columns
 
 # Sum columns for each bus
-df_bus_pg = sum_by_group(df_gen_pg, bus_to_gen_col, df_datetime)
-dfs_res["post"]["bus_pg"] = df_bus_pg
+df_bus_gen_pg = sum_by_group(df_gen_pg, bus_to_gen_col, df_datetime)
+dfs_res["post"]["bus_gen_pg"] = df_bus_gen_pg
 
 ## Generator Primary Frequency Response by Bus
 df_gen_uc = dfs_res["variable"]["OnVariable__ThermalStandard"]
@@ -51,19 +51,19 @@ pfr_allocation = max.(min.(available_capacity, pfr_limit), 0.0)
 df_gen_pfr = hcat(df_datetime, DataFrame(pfr_allocation, thermal_cols))
 
 # Create PFR allocation per bus
-df_bus_pfr = sum_by_group(df_gen_pfr, bus_to_gen_col, df_datetime)
-dfs_res["post"]["bus_pfr"] = df_bus_pfr
+df_bus_gen_pfr = sum_by_group(df_gen_pfr, bus_to_gen_col, df_datetime)
+dfs_res["post"]["bus_gen_pfr"] = df_bus_gen_pfr
 
 ## Generator Output Power and PFR by Area
 area_to_bus = data["map"]["area_to_bus"]
 
 # Area-wise Generation
-df_area_pg = sum_by_group(df_bus_pg, area_to_bus, df_datetime)
-dfs_res["post"]["area_pg"] = df_area_pg
+df_area_gen_pg = sum_by_group(df_bus_gen_pg, area_to_bus, df_datetime)
+dfs_res["post"]["area_gen_pg"] = df_area_gen_pg
 
 # Area-wise PFR Allocation
-df_area_pfr = sum_by_group(df_bus_pfr, area_to_bus, df_datetime)
-dfs_res["post"]["area_pfr"] = df_area_pfr
+df_area_gen_pfr = sum_by_group(df_bus_gen_pfr, area_to_bus, df_datetime)
+dfs_res["post"]["area_gen_pfr"] = df_area_gen_pfr
 
 ## Check violation
 # Check for violations against pmax
