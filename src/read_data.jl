@@ -19,17 +19,9 @@ function read_system_data(data_dir::AbstractString)
         data[k] = df
     end
 
-    # add map
-    bus_to_area = Dict(
-        row.id_bus => row.id_area
-        for row in eachrow(data["bus"][!, [:id_bus, :id_area]])
-    )
-    data["map"] = Dict("bus_to_area" => bus_to_area)
-
-    # add area
-    add_area_df!(data)
-
     # add columns
+    bus_to_area = get_map_from_df(data["bus"], :id_bus, :id_area)
+
     add_fuel_col!(data["generator"])
     add_primemover_col!(data["generator"])
     add_datatype_col!(data["generator"])
@@ -38,6 +30,18 @@ function read_system_data(data_dir::AbstractString)
     add_primemover_col!(data["storage"])
     add_datatype_col!(data["storage"])
     add_id_area_col!(data["storage"], bus_to_area)
+
+    # add dataframes
+    add_area_df!(data)
+    add_generator_extended_df!(data)
+
+    # NOTE:
+    #   add_maps! is optional and is used in post-processing, except for
+    # bus_to_area. Should we store the map since read data?
+    # 
+    # add maps
+    # add_maps!(data)
+
     return data
 end
 
@@ -169,8 +173,12 @@ function update_system_data_bound!(data::Dict{String,Any})
     df_line[!, "tmin"] = Matrix(data["line_tmin_tsf"][!, Not(:date)])[end, :]
 end
 
-# Extend data["generator"] with id_unit and id_gen_unit columns
 function extend_generator_data(df::DataFrame)
+    """
+    Extend generator DataFrame by creating individual units for each generator.
+    Each generator with `n` units will be expanded into `n` rows, each representing
+    a single unit with its own `id_unit` and `id_gen_unit`.
+    """
     return vcat([
         let
             n_units = row.n
@@ -195,18 +203,43 @@ function add_area_df!(data)
     data["area"].max_pmax = [area_to_max_pmax[id] for id in data["area"].id_area]
 end
 
+function add_generator_extended_df!(data)
+    data["generator_extended"] = extend_generator_data(data["generator"])
+end
+
+function add_maps!(data)
+    bus_to_area = get_map_from_df(data["bus"], :id_bus, :id_area)
+    gen_unit_to_pmax = get_map_from_df(data["generator_extended"], :id_gen_unit, :pmax)
+    gen_unit_to_pfrmax = get_map_from_df(data["generator_extended"], :id_gen_unit, :pfrmax)
+    gen_to_bus = get_map_from_df(data["generator"], :id_gen, :id_bus)
+    gen_unit_to_gen = get_map_from_df(data["generator_extended"], :id_gen_unit, :id_gen)
+
+    area_to_bus = get_grouped_map_from_df(data["bus"], :id_area, :id_bus)
+    gen_to_units = get_grouped_map_from_df(data["generator_extended"], :id_gen, :id_unit)
+
+    data["map"] = Dict(
+        "bus_to_area" => bus_to_area,
+        "gen_unit_to_pmax" => gen_unit_to_pmax,
+        "gen_unit_to_pfrmax" => gen_unit_to_pfrmax,
+        "gen_to_bus" => gen_to_bus,
+        "gen_unit_to_gen" => gen_unit_to_gen,
+        "area_to_bus" => area_to_bus,
+        "gen_to_units" => gen_to_units,
+    )
+end
+
 function get_group_max(df::DataFrame, group_col::Symbol, value_col::Symbol)
     """
     Get maximum value for each group.
-    
+
     # Arguments
     - `df::DataFrame`: Input DataFrame
     - `group_col::Symbol`: Column to group by (e.g., :id_area, :id_bus)
     - `value_col::Symbol`: Column to aggregate (e.g., :pmax, :capacity)
-    
+
     # Returns
     - `Dict`: Dictionary mapping group IDs to maximum values
-    
+
     # Examples
     ```julia
     area_to_max_pmax = get_group_max(data["generator"], :id_area, :pmax)

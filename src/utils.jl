@@ -83,10 +83,7 @@ function get_map_from_df(df::DataFrame, col1::Union{Symbol, String}, col2::Union
     gen_to_bus = get_map_from_df(data["generator"], :id_gen, :id_bus)
     ```
     """
-    return OrderedDict(
-        row[col1] => row[col2]
-        for row in eachrow(df[!, [col1, col2]])
-    )
+    return OrderedDict(zip(df[!, col1], df[!, col2]))
 end
 
 function get_grouped_map_from_df(df::DataFrame, col1::Union{Symbol, String}, col2::Union{Symbol, String})
@@ -208,11 +205,11 @@ function get_group_to_col(col_to_bus::OrderedDict)
     return get_inverse_map(col_to_bus)
 end
 
-function get_component_columns(df::DataFrame; timecol::Symbol = :DateTime)
+function get_component_columns(df::DataFrame; timecol::Union{Symbol, String, Nothing} = :DateTime)
     return filter(x -> x != String(timecol), names(df))
 end
 
-function sum_by_group(df::DataFrame, com_to_group::Dict; timecol::Symbol = :DateTime)
+function sum_by_group(df::DataFrame, com_to_group::Union{Dict, OrderedDict}, timecol::Union{Symbol, String, Nothing})
     """
     Sum DataFrame columns grouped by group ID. For example, sum generator
     columns by bus ID. This uses `sum_by_group` internally.
@@ -220,15 +217,15 @@ function sum_by_group(df::DataFrame, com_to_group::Dict; timecol::Symbol = :Date
     # Arguments
     - `df::DataFrame`: DataFrame with columns named as "com_id_sub_id" (e.g., "1_2")
     - `com_to_group::Dict`: Dictionary mapping component IDs to group IDs
-    - `timecol::Symbol`: Name of the time column to preserve (default: :DateTime)
+    - `timecol::Union{Symbol, String, Nothing}`: Name of the time column to preserve
     
     # Returns
     - `DataFrame`: DataFrame with columns aggregated by bus ID, with time column as first column if present
     
     # Example
     ```julia
-    gen2bus = get_gen_to_bus(data)
-    df_by_bus = sum_by_group(df_gen_power, gen2bus)
+    gen_to_bus = get_gen_to_bus(data)
+    df_by_bus = sum_by_group(df_gen_power, gen_to_bus, timecol)
     ```
     """
     # Get component columns (exclude time column)
@@ -248,6 +245,24 @@ function sum_by_group(df::DataFrame, com_to_group::Dict; timecol::Symbol = :Date
 
     return df_result
 end
+
+function sum_by_group(df::DataFrame, group_to_col::OrderedDict, df_datetime::DataFrame)
+    """
+    Sum DataFrame columns grouped by group ID. For example, sum generator
+    columns by bus ID, and combine with datetime DataFrame.
+    
+    # Arguments
+    - `df::DataFrame`: DataFrame with component columns
+    - `group_to_col::OrderedDict`: Dictionary mapping group IDs to column names
+    - `df_datetime::DataFrame`: DataFrame containing the time column
+    
+    # Returns
+    - `DataFrame`: DataFrame with summed columns per group (columns named by group ID) combined with datetime
+    """
+    df_result = sum_by_group(df, group_to_col)
+    return hcat(df_datetime, df_result)
+end
+
 
 function sum_by_group(df::DataFrame, group_to_col::OrderedDict)
     """
