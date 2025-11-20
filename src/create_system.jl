@@ -242,8 +242,8 @@ function create_system!(data)
                                 value_curve=LinearCurve(row.cvar),
                             ),
                             fixed=0.0,
-                            start_up=0.0,
-                            shut_down=0.0,
+                            start_up=row.start_up_cost,
+                            shut_down=row.shut_down_cost,
                         ),
                         base_power=row.pmax, # MVA
                         time_limits=(up=row.up_time, down=row.down_time), # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
@@ -281,8 +281,8 @@ function create_system!(data)
                                 value_curve=LinearCurve(row.cvar),
                             ),
                             fixed=0.0,
-                            start_up=0.0,
-                            shut_down=0.0,
+                            start_up=row.start_up_cost,
+                            shut_down=row.shut_down_cost,
                         ),
                         base_power=row.pmax, # MVA
                         time_limits=(up=row.up_time, down=row.down_time), # MUT MDT, if in Hours: (up = 8.0, down = 8.0)
