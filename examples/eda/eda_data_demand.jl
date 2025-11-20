@@ -1,5 +1,5 @@
 using DataFrames
-using Plots
+using PlotlyJS
 using Statistics
 
 target_scenario = 1
@@ -34,23 +34,51 @@ for group in groupby(df_demand_l_ts_s, :id_dem)
 end
 
 # Plot 1: Original values for all id_dem groups
-p1 = plot(title="Original Demand Values by ID_DEM (Scenario $target_scenario)", 
-          xlabel="Date/Time", ylabel="Demand Value", 
-          legend=:topright, size=(800, 600))
-for (id_dem, data) in demand_dict_to_plot
-    plot!(p1, data.date, data.value, label="ID_DEM $id_dem", linewidth=2)
+traces1 = GenericTrace[]
+for (id_dem, data) in sort(demand_dict_to_plot)
+    trace = scatter(
+        x=data.date,
+        y=data.value,
+        name="ID_DEM $id_dem",
+        mode="lines",
+        line=attr(width=2)
+    )
+    push!(traces1, trace)
 end
+
+layout1 = Layout(
+    title="Original Demand Values by ID_DEM (Scenario $target_scenario)",
+    xaxis_title="Date/Time",
+    yaxis_title="Demand Value (MW)",
+    hovermode="x unified",
+    legend=attr(orientation="v", yanchor="top", y=1, xanchor="right", x=1)
+)
+
+p1 = plot(traces1, layout1)
 display(p1)
 
 # Plot 2: Normalized values for all id_dem groups
-p2 = plot(title="Normalized Demand Values by ID_DEM (Scenario $target_scenario)", 
-          xlabel="Date/Time", ylabel="Normalized Value (0-1)", 
-          legend=:topright, size=(800, 600))
-
-for (id_dem, data) in demand_dict_to_plot
-    plot!(p2, data.date, data.normalized_value, label="ID_DEM $id_dem", linewidth=2)
+traces2 = GenericTrace[]
+for (id_dem, data) in sort(demand_dict_to_plot)
+    trace = scatter(
+        x=data.date,
+        y=data.normalized_value,
+        name="ID_DEM $id_dem",
+        mode="lines",
+        line=attr(width=2)
+    )
+    push!(traces2, trace)
 end
 
+layout2 = Layout(
+    title="Normalized Demand Values by ID_DEM (Scenario $target_scenario)",
+    xaxis_title="Date/Time",
+    yaxis_title="Normalized Value (0-1)",
+    hovermode="x unified",
+    legend=attr(orientation="v", yanchor="top", y=1, xanchor="right", x=1)
+)
+
+p2 = plot(traces2, layout2)
 display(p2)
 
 # println("\nSummary Statistics:")
@@ -63,5 +91,8 @@ display(p2)
 #     println()
 # end
 
-# savefig(p1, "demand_original_scenario_$target_scenario.png")
-# savefig(p2, "demand_normalized_scenario_$target_scenario.png")
+# # Save plots
+# plots_dir = "examples/result/nem12/plots"
+# mkpath(plots_dir)
+# savefig(p1, joinpath(plots_dir, "demand_original_scenario_$target_scenario.png"))
+# savefig(p2, joinpath(plots_dir, "demand_normalized_scenario_$target_scenario.png"))
