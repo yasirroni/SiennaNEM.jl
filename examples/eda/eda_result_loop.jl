@@ -79,7 +79,6 @@ end
 using CSV
 
 output_dir = "examples/result/nem12/csv"
-schedule_name = "schedule-2028"
 mkpath(output_dir)  # Create directory if it doesn't exist
 
 for (category, dfs) in dfs_res

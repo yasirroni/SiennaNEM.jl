@@ -25,7 +25,7 @@ function bench_horizon_setup(system_data_dir::AbstractString, ts_data_dir::Abstr
 
     sys = create_system!(data)
 
-    add_ts!(sys, data)
+    add_ts!(sys, data, scenario_name=1)
     return template_uc, sys, solver
 end
 

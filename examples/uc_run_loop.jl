@@ -12,20 +12,25 @@ horizon = Hour(24)
 interval = Hour(1)
 window_shift = Hour(24)
 initial_time = minimum(data["demand_l_ts"][!, "date"])
+scenario_name = 1  # Assuming single scenario for simplicity
 
 # Create time series slices data
 # NOTE:
 #   This function is too heavy, maybe don't slice all at once.
 # TODO:
 #   Benchmark on single week, compare with slicing on the fly.
+
+df_demand = filter_value_from_df(data["demand_l_ts"], :scenario, scenario_name)
+df_generator = filter_value_from_df(data["generator_pmax_ts"], :scenario, scenario_name)
+
 demand_time_slices = get_time_slices_iterator(
-    data["demand_l_ts"],
+    df_demand,
     initial_time = initial_time,
     horizon = horizon,
     window_shift = window_shift,
 )
 generator_time_slices = get_time_slices_iterator(
-    data["generator_pmax_ts"],
+    df_generator,
     initial_time = initial_time,
     horizon = horizon,
     window_shift = window_shift,
@@ -34,18 +39,18 @@ generator_time_slices = get_time_slices_iterator(
 # Loop through each time slice
 res_dict = Dict{DateTime, OptimizationProblemResults}()
 clear_time_series!(sys)  # This command is very time consuming, need a refactor
+
 for ((time_slice, df_demand_ts), (_, df_generator_ts)) in zip(demand_time_slices, generator_time_slices)
     # TODO: use Deterministic directly to avoid removing and adding
     add_ts!(
         sys,
         df_demand_ts,
         df_generator_ts,
+        data["components"]["demands"],
         data["components"]["renewable_dispatch_generators"],
         data["components"]["renewable_nondispatch_generators"],
-        data["components"]["demands"],
         horizon=horizon,
         interval=interval,
-        scenario_name=1,
     )
 
     # Create and solve the decision model with the current time slice

@@ -23,7 +23,7 @@ function create_time_slices(
     return slices
 end
 
-function create_time_slices_iterator(
+function get_time_slices_iterator(
     df::DataFrame;
     initial_time::DateTime,
     horizon::Period,
@@ -79,13 +79,13 @@ println("Median time: ", BenchmarkTools.prettytime(median(b1).time))
 
 println("\n2. Iterator-based (lazy evaluation):")
 b2 = @benchmark begin
-    demand_gen = create_time_slices_iterator(
+    demand_gen = get_time_slices_iterator(
         $data["demand_l_ts"],
         initial_time = $initial_time,
         horizon = $horizon,
         window_shift = $window_shift,
     )
-    generator_gen = create_time_slices_iterator(
+    generator_gen = get_time_slices_iterator(
         $data["generator_pmax_ts"],
         initial_time = $initial_time,
         horizon = $horizon,

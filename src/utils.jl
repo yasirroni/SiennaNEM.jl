@@ -285,3 +285,43 @@ function sum_by_group(df::DataFrame, group_to_col::OrderedDict)
     end
     return df_result
 end
+
+"""
+    filter_value_from_df(df::DataFrame, col_name::Symbol, col_value::Any)
+
+Filter DataFrame rows where a column equals a specific value using boolean indexing.
+
+Returns a view (SubDataFrame) for memory efficiency. Faster than `subset` approach
+but creates an intermediate boolean array. Use this for performance-critical code.
+
+# Arguments
+- `df::DataFrame`: The DataFrame to filter.
+- `col_name::Symbol`: The column name to filter on.
+- `col_value::Any`: The value to match in the specified column.
+
+# Returns
+- `SubDataFrame`: A view of the filtered rows.
+"""
+function filter_value_from_df(df::DataFrame, col_name::Symbol, col_value::Any)
+    return @view df[df[!, col_name] .== col_value, :]
+end
+
+"""
+    filter_values_from_df(df::DataFrame, col_name::Symbol, col_values::Vector)
+
+Filter DataFrame rows where a column value is in a collection of values.
+
+Returns a view (SubDataFrame) for memory efficiency. Use this when filtering
+by multiple possible values.
+
+# Arguments
+- `df::DataFrame`: The DataFrame to filter.
+- `col_name::Symbol`: The column name to filter on.
+- `col_values::Vector`: The values to match in the specified column.
+
+# Returns
+- `SubDataFrame`: A view of the filtered rows.
+"""
+function filter_values_from_df(df::DataFrame, col_name::Symbol, col_values::Vector)
+    return @view df[in.(df[!, col_name], Ref(col_values)), :]
+end

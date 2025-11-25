@@ -6,6 +6,7 @@ using Dates
 # can specify the horizon and initial_time for the decision model.
 
 # Parameters for the decision model
+initial_date = DateTime("2025-01-07T00:00:00")
 horizon = Hour(24)
 
 # Add time series data to the system
