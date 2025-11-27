@@ -25,3 +25,12 @@ get_time_series_array(
     Deterministic, renewable_non_dispatch, "max_active_power";
     start_time=initial_time
 )
+
+# PowerLoad
+power_load = first(collect(get_components(PowerLoad, sys)))
+show_time_series(power_load)
+ta = get_time_series_array(
+    DeterministicSingleTimeSeries, power_load, "max_active_power";
+    start_time=initial_time
+)
+ta_times = timestamp(ta)

@@ -43,7 +43,7 @@ function add_ts!(
     sys, data;
     start_date=nothing,
     horizon=nothing,
-    interval=nothing,
+    interval=Hour(1),
     scenario_name=1
 )
     # NOTE: This is just a wrapper to use data instead of df
@@ -84,7 +84,7 @@ function add_ts!(
     renewable_dispatch_generators,
     renewable_nondispatch_generators;
     horizon=nothing,
-    interval=nothing,
+    interval=Hour(1),
 )
     # NOTE:
     #   This is the main function to add time series to the system.
@@ -102,27 +102,16 @@ function add_ts!(
     add_sts!(sys, renewable_nondispatch_generators, grouped_generator, :id_gen)
 
     # Auto-detect horizon and interval if not provided
-    if horizon === nothing || interval === nothing
+    if horizon === nothing
         first_key = first(keys(grouped_demand))
         dates = grouped_demand[first_key][!, :date]
-        if horizon === nothing
-            horizon = dates[end] - dates[1]
-        end
-        if interval === nothing
-            interval = dates[2] - dates[1]
-        end
+        horizon = dates[end] - dates[1]
     end
 
-    # TODO:
-    # 1. Check and learn how horizon and interval work in PowerSimulations.jl
-    # 2. Which one does transform_single_time_series! use?
-    #   slice_end = start_date + horizon
-    #   slice_end = start_date + horizon - interval
-    #   slice_end = start_date + horizon + interval
     transform_single_time_series!(
         sys,
         horizon,
-        interval,
+        interval,  # interval is not resolution, this is used for the rolling forecast window time step
     )
 end
 
