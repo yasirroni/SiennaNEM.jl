@@ -4,12 +4,12 @@ using PowerSystems
 """
     run_decision_model_loop(
         template::ProblemTemplate,
-        sys::System,
-        optimizer;
+        sys::System;
         schedule_horizon::Union{Period, Nothing}=nothing,
         window_shift::Period=Hour(24),
         minimum_initial_time::Union{DateTime, Nothing}=nothing,
-        maximum_initial_time::Union{DateTime, Nothing}=nothing
+        maximum_initial_time::Union{DateTime, Nothing}=nothing,
+        kwargs...
     )
 
 Set up and solve multiple unit commitment decision models by iterating over time windows.
@@ -21,7 +21,6 @@ by `window_shift` for each iteration.
 # Arguments
 - `template::ProblemTemplate`: The problem template defining the UC formulation.
 - `sys::System`: The PowerSystems system object containing the network and time series data.
-- `solver`: The optimization solver (e.g., HiGHS.Optimizer).
 
 # Keyword Arguments
 - `schedule_horizon::Union{Period, Nothing}=nothing`: Time horizon for each decision model.
@@ -32,6 +31,7 @@ by `window_shift` for each iteration.
   If `nothing`, uses the first available forecast initial time from the system.
 - `maximum_initial_time::Union{DateTime, Nothing}=nothing`: Ending time for the last window.
   If `nothing`, uses the last available forecast initial time from the system.
+- `kwargs...`: Additional keyword arguments to pass to `DecisionModel` constructor.
 
 # Returns
 - `Dict{DateTime, OptimizationProblemResults}`: Dictionary mapping initial times to their
@@ -45,16 +45,18 @@ by `window_shift` for each iteration.
 - The function will stop before running out of time series data to avoid assertion errors.
 
 # TODO
-- Use Deterministic time series directly to avoid removing and re-adding time series data.
+- Support passing storage last state of charge into initial state of charge on the next loop.
+- Support schedule_horizon wider than window_shift to have overlapping time slices.
+
 """
 function run_decision_model_loop(
     template::ProblemTemplate,
-    sys::System,
-    optimizer;
+    sys::System;
     schedule_horizon::Union{Period, Nothing}=nothing,
     window_shift::Period=Hour(24),
     minimum_initial_time::Union{DateTime, Nothing}=nothing,
-    maximum_initial_time::Union{DateTime, Nothing}=nothing
+    maximum_initial_time::Union{DateTime, Nothing}=nothing,
+    kwargs...
 )
     # Determine the horizon
     if schedule_horizon === nothing
@@ -66,13 +68,9 @@ function run_decision_model_loop(
         initial_times = collect(InfrastructureSystems.get_forecast_initial_times(sys.data))
         if minimum_initial_time === nothing
             minimum_initial_time = first(initial_times)
-        else
-            minimum_initial_time = minimum_initial_time
         end
         if maximum_initial_time === nothing
             maximum_initial_time = last(initial_times)
-        else
-            maximum_initial_time = maximum_initial_time
         end
     end
 
@@ -86,7 +84,7 @@ function run_decision_model_loop(
             template, sys;
             horizon=schedule_horizon,
             initial_time=initial_time_slice,
-            optimizer=optimizer,
+            kwargs...
         )
 
         build!(problem; output_dir=mktempdir())
@@ -98,8 +96,8 @@ function run_decision_model_loop(
 end
 
 results = run_decision_model_loop(
-    template_uc, sys,
-    solver;
+    template_uc, sys;
     schedule_horizon=Hour(24),
-    window_shift=Hour(24)
+    window_shift=Hour(24),
+    optimizer=solver,
 )
