@@ -14,6 +14,7 @@ include("const.jl")
 include("create_system.jl")
 include("plot.jl")
 include("read_data.jl")
+include("run.jl")
 include("utils.jl")
 
 include("problem/uc.jl")
@@ -45,5 +46,6 @@ export get_full_ts_df, add_tsf_data!
 export plot_stacked
 
 export build_problem_base_uc
+export run_decision_model, run_decision_model_loop
 
 end
