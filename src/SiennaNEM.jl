@@ -13,6 +13,7 @@ const DF = DataFrames
 include("add_ts.jl")
 include("const.jl")
 include("create_system.jl")
+include("export.jl")
 include("plot.jl")
 include("read_data.jl")
 include("run.jl")
@@ -48,5 +49,7 @@ export plot_stacked
 
 export build_problem_base_uc
 export run_decision_model, run_decision_model_loop
+
+export export_optimization_results_to_csv
 
 end
