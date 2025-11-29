@@ -50,6 +50,6 @@ export plot_stacked
 export build_problem_base_uc
 export run_decision_model, run_decision_model_loop
 
-export export_optimization_results_to_csv
+export export_optimization_results_to_csv, get_problem_results
 
 end

@@ -30,9 +30,9 @@ horizon = Hour(24)
 interval = Hour(1)
 
 # data and system
-data = get_data(system_data_dir, ts_data_dir)
-sys = create_system!(data)
-add_ts!(
+data = SiennaNEM.get_data(system_data_dir, ts_data_dir)
+sys = SiennaNEM.create_system!(data)
+SiennaNEM.add_ts!(
     sys, data;
     horizon=horizon,  # horizon of each time slice that will be used in the study
     interval=interval,  # interval within each time slice, not the resolution of the time series
