@@ -100,11 +100,12 @@ if !isdefined(Main, :area_to_name)
     )
 end
 
-"""
-Handlers configuration for reading different result types from
-OptimizationProblemResults. Each tuple contains:
-(category_name, list_function, read_function)
-"""
+# TODO: use,
+#   read_expressions
+#   read_aux_variables
+#   read_parameters
+#   read_variables
+#   read_duals
 if !isdefined(Main, :optimization_result_handlers)
     const optimization_result_handlers = [
         ("expression", list_expression_names, read_expression),

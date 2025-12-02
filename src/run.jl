@@ -1,5 +1,6 @@
 using Dates
 using PowerSystems
+import Logging: @info
 
 """
     run_decision_model(
@@ -107,6 +108,7 @@ by `window_shift` for each iteration.
 - The function will stop before running out of time series data to avoid assertion errors.
 
 # TODO
+- Use Chronology, that is SimulationSequence.
 - Support passing storage last state of charge into initial state of charge on the next loop.
 - Support schedule_horizon wider than window_shift to have overlapping time slices.
 """
@@ -117,6 +119,7 @@ function run_decision_model_loop(
     window_shift::Period=Hour(24),
     minimum_initial_time::Union{DateTime, Nothing}=nothing,
     maximum_initial_time::Union{DateTime, Nothing}=nothing,
+    verbose::Bool=false,
     kwargs...
 )
     # Determine the horizon
@@ -140,6 +143,8 @@ function run_decision_model_loop(
 
     # Loop through each time slice
     for initial_time_slice in minimum_initial_time:window_shift:maximum_initial_time
+        verbose && @info "Processing time slice" initial_time_slice
+        
         # Create and solve the decision model with the current time slice
         problem = DecisionModel(
             template, sys;
