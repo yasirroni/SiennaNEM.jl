@@ -47,5 +47,12 @@ ta = get_time_series_array(
 forecast = get_time_series(DeterministicSingleTimeSeries, power_load, "max_active_power")
 initial_timestamp = get_initial_timestamp(forecast)
 step = InfrastructureSystems.get_resolution(forecast)
-length = InfrastructureSystems.get_horizon_count(forecast)
+horizon_count = InfrastructureSystems.get_horizon_count(forecast)
 horizon = InfrastructureSystems.get_horizon(forecast)
+
+# to get time series from system data directly
+initial_times = collect(InfrastructureSystems.get_forecast_initial_times(sys.data))
+horizon_count = get_forecast_window_count(sys)
+horizon = Hour(get_forecast_horizon(sys))
+initial_timestamp = get_forecast_initial_timestamp(sys)
+interval = Hour(get_forecast_interval(sys))
