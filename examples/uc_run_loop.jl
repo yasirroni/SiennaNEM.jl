@@ -5,7 +5,6 @@ results = SiennaNEM.run_decision_model_loop(
     template_uc, sys;
     simulation_folder="examples/result/simulation_folder",
     simulation_name="$(schedule_name)_scenario-$(scenario_name)",
-    simulation_steps=1,
     decision_model_kwargs=(
         optimizer=solver,
     ),
