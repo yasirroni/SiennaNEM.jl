@@ -66,7 +66,7 @@ if !isdefined(Main, :tech_to_datatype)
         "Brown Coal" => ThermalStandard,
         "Diesel" => ThermalStandard,
         "Run-of-River" => HydroDispatch,
-        "Reservoir" => HydroEnergyReservoir,
+        "Reservoir" => HydroTurbine,
         "Hydrogen-based gas turbines" => ThermalStandard,
         "OCGT" => ThermalStandard,
         "CCGT" => ThermalStandard,
@@ -74,7 +74,7 @@ if !isdefined(Main, :tech_to_datatype)
         "LargePV" => RenewableDispatch,
         "Wind" => RenewableDispatch,
         "BESS" => EnergyReservoirStorage,
-        "PS" => HydroPumpedStorage,
+        "PS" => HydroPumpTurbine,
     )
 end
 if !isdefined(Main, :tech_to_fuel)
