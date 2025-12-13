@@ -3,11 +3,11 @@
 [![Build Status](https://github.com/yasirroni/SiennaNEM.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/yasirroni/SiennaNEM.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/yasirroni/SiennaNEM.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/yasirroni/SiennaNEM.jl)
 
-SiennaNEM.jl is a framework designed to enable efficient operational scheduling of the NEM. It builds upon Sienna, formerly known as Scalable Integrated Infrastructure Planning (SIIP), developed by NREL for constructing and solving unit commitment (UC) models using JuMP. SiennaNEM.jl provides tools to perform detailed studies of the NEM, leveraging PISP data to represent system parameters. It also includes post-processing, analysis, and visualization capabilities to deliver high-quality insights into system operations. Furthermore, SiennaNEM.jl benefits from Sienna's expanding tools, allowing users to extend the provided base studies with other Sienna features. Its foundation in JuMP also allows easy extraction and customization of the optimization model, making it highly adaptable for diverse studies.
+[SiennaNEM.jl](https://github.com/ARPST-UniMelb/SiennaNEM.jl) enables operational scheduling studies of the NEM using [Sienna](https://nrel-sienna.github.io/Sienna/) and [JuMP](https://jump.dev/). It constructs unit commitment models from [PISP](https://github.com/ARPST-UniMelb/PISP.jl) data and provides analysis and visualization tools for system operations insights.
 
 ## Usage
 
-See minimum working example workflow in `examples/`. Minimum example is as follows,
+See minimum working example workflow in `examples/`. Minimum example with [data](#add-data) from [PISP.jl](#add-data) is as follows,
 
 ```julia
 using SiennaNEM
@@ -18,13 +18,13 @@ using Dates
 using HiGHS
 
 # input variables parameters
-schedule_name = "schedule-1w"
+system_data_dir = "../data/pisp-datasets/out-ref4006-poe10/arrow"
+schedule_name = "schedule-2030"
 scenario_name = 1
 
 # data and system
 data = SiennaNEM.get_data(
-    "data/nem12/arrow",
-    joinpath("data/nem12/arrow", schedule_name),
+    system_data_dir, joinpath(system_data_dir, schedule_name),
 )
 sys = SiennaNEM.create_system!(data)
 SiennaNEM.add_ts!(
@@ -40,6 +40,7 @@ results = SiennaNEM.run_decision_model_loop(
     template_uc, sys;
     simulation_folder="examples/result/simulation_folder",
     simulation_name="$(schedule_name)_scenario-$(scenario_name)",
+    simulation_steps=2,
     decision_model_kwargs=(
         optimizer=optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01),
     ),
@@ -47,33 +48,6 @@ results = SiennaNEM.run_decision_model_loop(
 ```
 
 ## Development
-
-### Add data
-
-To add data, clone the `ARPST-UniMelb/NEM-reliability-suite`
-
-```sh
-git clone git@github.com:ARPST-UniMelb/NEM-reliability-suite.git
-```
-
-If you already clone it, pull to update to the latest data
-
-```sh
-cd NEM-reliability-suite
-git pull
-git lfs pull
-cd ..
-mkdir -p data
-cp -r NEM-reliability-suite/data/ data/nem12
-```
-
-<!-- 
-To delete `data/nem12`,
-
-```sh
-rm -rf data/nem12
-```
--->
 
 ### Installation
 
@@ -91,6 +65,27 @@ Install [`PISP.jl`](https://github.com/ARPST-UniMelb/PISP.jl#),
 ```julia
 using Pkg
 Pkg.develop(path="../PISP.jl")
+```
+
+### Add data
+
+```julia
+using PISP
+
+reference_trace = 4006 
+poe = 10 # Probability of exceedance (POE) for demand
+target_years = [2030, 2031]
+
+PISP.build_ISP24_datasets(
+    downloadpath = joinpath(@__DIR__, "..", "data", "pisp-downloads"),
+    poe          = poe,
+    reftrace     = reference_trace,
+    years        = target_years,
+    output_root  = joinpath(@__DIR__, "..", "data", "pisp-datasets"),
+    write_csv    = true,
+    write_arrow  = true,
+    scenarios    = [1,2,3]
+    )
 ```
 
 ### Start

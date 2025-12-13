@@ -164,7 +164,7 @@ function run_decision_model_loop(
     # - Support passing storage last state of charge into initial state of charge on the next loop.
     # - Support schedule_horizon wider than window_shift to have overlapping time slices.
     res_dict = Dict{DateTime,OptimizationProblemResults}()
-    for initial_time_slice in InfrastructureSystems.get_forecast_initial_times(sys.data)
+    for (step, initial_time_slice) in enumerate(InfrastructureSystems.get_forecast_initial_times(sys.data))
         # Create and solve the decision model with the current time slice
         problem = DecisionModel(
             template, sys;
@@ -176,6 +176,11 @@ function run_decision_model_loop(
         build!(problem; output_dir=mktempdir())
         solve!(problem)
         res_dict[initial_time_slice] = OptimizationProblemResults(problem)
+
+        # Break if we've reached the desired number of simulation steps
+        if step >= simulation_steps
+            break
+        end
     end
     return res_dict
 end
