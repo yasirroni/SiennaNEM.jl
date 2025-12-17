@@ -1,16 +1,16 @@
-function get_data(system_data_dir, ts_data_dir; scenario_name=1)
+function get_data(system_data_dir, ts_data_dir; scenario_name=1, file_format="arrow")
     # TODO:
     #   Refactor this so that we don't need `scenario_name` in building the
     # system data here.
-    data = read_system_data(system_data_dir)
-    read_ts_data!(data, ts_data_dir)
+    data = read_system_data(system_data_dir; file_format=file_format)
+    read_ts_data!(data, ts_data_dir; file_format=file_format)
     add_tsf_data!(data; scenario_name=scenario_name)
     update_system_data_bound!(data)
     clean_ts_data!(data)
     return data
 end
 
-function read_system_data(data_dir::AbstractString)
+function read_system_data(data_dir::AbstractString; file_format="arrow")
     files = Dict(
         "bus" => "Bus",
         "demand" => "Demand",
@@ -23,10 +23,12 @@ function read_system_data(data_dir::AbstractString)
     data = Dict{String,Any}()
     for (k, fname) in files
         path = joinpath(data_dir, fname)
-        if isfile(path * ".arrow")
+        if file_format == "arrow"
             df = DataFrame(Arrow.Table(path * ".arrow"))
-        else
+        elseif file_format == "csv"
             df = CSV.read(path * ".csv", DataFrame)
+        else
+            error("Unsupported file format: $file_format. Use 'arrow' or 'csv'.")
         end
         data[k] = df
     end
@@ -57,7 +59,7 @@ function read_system_data(data_dir::AbstractString)
     return data
 end
 
-function read_ts_data!(data::Dict{String,Any}, data_dir::AbstractString)
+function read_ts_data!(data::Dict{String,Any}, data_dir::AbstractString; file_format="arrow")
     files = Dict(
         "demand_l_ts" => "Demand_load_sched",
         "generator_pmax_ts" => "Generator_pmax_sched",
@@ -73,10 +75,12 @@ function read_ts_data!(data::Dict{String,Any}, data_dir::AbstractString)
 
     for (k, fname) in files
         path = joinpath(data_dir, fname)
-        if isfile(path * ".arrow")
+        if file_format == "arrow"
             df = DataFrame(Arrow.Table(path * ".arrow"))
-        else
+        elseif file_format == "csv"
             df = CSV.read(path * ".csv", DataFrame)
+        else
+            error("Unsupported file format: $file_format. Use 'arrow' or 'csv'.")
         end
         data[k] = add_day!(df)
     end

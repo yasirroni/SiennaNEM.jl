@@ -24,7 +24,7 @@ scenario_name = 1
 
 # data and system
 data = SiennaNEM.get_data(
-    system_data_dir, joinpath(system_data_dir, schedule_name),
+    system_data_dir, joinpath(system_data_dir, schedule_name); file_format="arrow",
 )
 sys = SiennaNEM.create_system!(data)
 SiennaNEM.add_ts!(
