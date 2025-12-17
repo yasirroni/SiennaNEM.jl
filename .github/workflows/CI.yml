@@ -47,28 +47,22 @@ jobs:
             echo "DATA_MODE=full" >> $GITHUB_ENV
           fi
 
-      - name: Checkout nem reliability suite (private)
+      - name: Checkout NEM reliability suite
         if: ${{ env.DATA_MODE == 'full' }}
         uses: actions/checkout@v6
         with:
           repository: ARPST-UniMelb/NEM-reliability-suite
           token: ${{ secrets.NEM_SUITE_PAT }}
-          path: NEM-reliability-suite
-
-      - name: Copy nem12 data
-        if: ${{ env.DATA_MODE == 'full' }}
-        run: |
-          rm -rf ./data/nem12 || true
-          mkdir -p data/nem12/csv
-          mkdir -p data/nem12/arrow
-          cp -r NEM-reliability-suite/data/csv/* data/nem12/csv/
-          cp -r NEM-reliability-suite/data/arrow/* data/nem12/arrow/
-          echo "nem12 data copied successfully"
+          path: ../NEM-reliability-suite
 
       # Show mode in logs
       - name: Show CI mode
         run: |
           echo "CI DATA MODE: $DATA_MODE"
+          if [ "$DATA_MODE" = "full" ]; then
+            echo "NEM-reliability-suite location:"
+            ls -la ../NEM-reliability-suite || echo "NEM-reliability-suite not found"
+          fi
 
       # Setup Julia
       - uses: julia-actions/setup-julia@v2
