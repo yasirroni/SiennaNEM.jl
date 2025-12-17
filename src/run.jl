@@ -12,7 +12,7 @@ using PowerSimulations
 Set up and solve a single unit commitment decision model.
 
 # Arguments
-- `template::ProblemTemplate`: The problem template defining the UC formulation.
+- `template::ProblemTemplate`: The decision_model template defining the UC formulation.
 - `sys::System`: The PowerSystems system object containing the network and time series data.
 
 # Keyword Arguments
@@ -26,7 +26,7 @@ Set up and solve a single unit commitment decision model.
 # Note
 - The function requires the system to be pre-built with time series data (see `uc_build_problem.jl`).
 - The `initial_time` must align with the time series data timestamps.
-- A temporary directory is created for problem output and automatically cleaned up.
+- A temporary directory is created for decision_model output and automatically cleaned up.
 """
 function run_decision_model(
     template::ProblemTemplate,
@@ -34,15 +34,15 @@ function run_decision_model(
     kwargs...
 )
     # Create and solve the decision model
-    problem = DecisionModel(
+    decision_model = DecisionModel(
         template, sys;
         kwargs...
     )
 
-    build!(problem; output_dir=mktempdir())
-    solve!(problem)
+    build!(decision_model; output_dir=mktempdir())
+    solve!(decision_model)
 
-    return OptimizationProblemResults(problem)
+    return decision_model
 end
 
 """
@@ -68,7 +68,7 @@ independently. Future implementation will use PowerSimulations' `SimulationSeque
 `InterProblemChronology()` for proper chronology handling.
 
 # Arguments
-- `template::ProblemTemplate`: The problem template defining the UC formulation.
+- `template::ProblemTemplate`: The decision_model template defining the UC formulation.
 - `sys::System`: The PowerSystems system object containing the network and time series data.
   Must be pre-built with time series using `add_ts!` with desired `horizon` and `interval`.
 
@@ -124,7 +124,7 @@ function run_decision_model_loop(
     # NOTE:
     #   Currently, there is a bug in Sienna that make SimulationSequence didn't
     # work with StorageSystemsSimulations. Thus, we temporarily use manual loop
-    # and return dict of OptimizationProblemResults(problem).
+    # and return dict of OptimizationProblemResults(decision_model).
 
     # # Create decision model with the provided template
     # decision_model = DecisionModel(
@@ -163,24 +163,36 @@ function run_decision_model_loop(
     # - Use Chronology, that is SimulationSequence.
     # - Support passing storage last state of charge into initial state of charge on the next loop.
     # - Support schedule_horizon wider than window_shift to have overlapping time slices.
-    res_dict = Dict{DateTime,OptimizationProblemResults}()
+    decision_models = OrderedDict{DateTime,DecisionModel}()
     for (step, initial_time_slice) in enumerate(InfrastructureSystems.get_forecast_initial_times(sys.data))
         # Create and solve the decision model with the current time slice
-        problem = DecisionModel(
+        decision_model = DecisionModel(
             template, sys;
             horizon=InfrastructureSystems.get_forecast_horizon(sys.data),
             initial_time=initial_time_slice,
             decision_model_kwargs...
         )
 
-        build!(problem; output_dir=mktempdir())
-        solve!(problem)
-        res_dict[initial_time_slice] = OptimizationProblemResults(problem)
+        build!(decision_model; output_dir=mktempdir())
+        solve!(decision_model)
+        decision_models[initial_time_slice] = decision_model
 
         # Break if we've reached the desired number of simulation steps
         if step >= simulation_steps
             break
         end
     end
-    return res_dict
+    return decision_models
+end
+
+function get_result(decision_model::DecisionModel)
+    return OptimizationProblemResults(decision_model)
+end
+
+function get_results(decision_models::OrderedDict)
+    results = OrderedDict{DateTime,OptimizationProblemResults}()
+    for (initial_time, decision_model) in decision_models
+        results[initial_time] = OptimizationProblemResults(decision_model)
+    end
+    return results
 end
