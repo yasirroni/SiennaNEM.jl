@@ -1,77 +1,140 @@
 using Test
-using SiennaNEM
-using PowerSystems
 using Dates
+using HiGHS
 
-const PSY = PowerSystems
+using PowerSystems
+using PowerSimulations
+using InfrastructureSystems
 
-function test_system_creation(system_data_dir::String, backend::String)
+using SiennaNEM
+
+
+function test_system_creation(system_data_dir::String, ts_data_dir::String, backend::String)
     """
     Helper function to test system creation from data directory.
-    
+
     Args:
         system_data_dir: Path to system data directory
+        ts_data_dir: Path to time series data directory
+        backend: Backend type, "arrow" or "csv"
     """
-    data = read_system_data(system_data_dir)
-    @testset "[$(backend)] Read system data" begin
-        system_data_keys = [
-            "bus",
-            "storage",
-            "generator",
-            "line",
-            "demand",
-        ]
-        missing_keys_system_data = filter(k -> !haskey(data, k), system_data_keys)
-        @test isempty(missing_keys_system_data) || error("Missing main data keys: $(missing_keys_system_data)")
+
+    horizon = Hour(48)
+    interval = Hour(24)
+    scenario = 1
+    simulation_output_folder = "test/sienna-files"
+    simulation_name = "test_system_creation_$backend"
+    simulation_steps = 2  # number of rolling horizon steps
+
+    # Read data
+    data = nothing
+    @testset "[$(backend)] Get data" verbose = true begin
+        data = SiennaNEM.get_data(system_data_dir, ts_data_dir; file_format=backend)
+        @test data !== nothing
     end
 
-    ts_data_dir = joinpath(system_data_dir, "schedule-1w")
-    read_ts_data!(data, ts_data_dir)
-    @testset "[$(backend)] Read timeseries data" begin
-        timeseries_data_keys = [
-            "der_p_ts",
-            "storage_lmax_ts",
-            "storage_n_ts",
-            "line_tmax_ts",
-            "line_tmin_ts",
-            "generator_n_ts",
-            "storage_emax_ts",
-            "demand_l_ts",
-            "storage_pmax_ts",
-            "generator_pmax_ts",
-        ]
-        missing_keys_ts_data = filter(k -> !haskey(data, k), timeseries_data_keys)
-        @test isempty(missing_keys_ts_data) || error("Missing timeseries data keys: $(missing_keys_ts_data)")
+    # Create system
+    sys_sienna = nothing
+    @testset "[$(backend)] Create system" verbose = true begin
+        sys_sienna = SiennaNEM.create_system!(data)
+        @test sys_sienna !== nothing
+        @test typeof(sys_sienna) <: PowerSystems.System
     end
 
-    scenario_name = 1
-    date_start = DateTime("2025-01-07T00:00:00")
-    date_end = DateTime("2025-01-23T00:00:00")
-    add_tsf_data!(data, scenario_name=scenario_name, date_start=date_start, date_end=date_end)
-    update_system_data_bound!(data)
-    @testset "[$(backend)] Add tsf and update bound" begin
-        # TODO: test add tsf and update bound
+    # Add time series
+    @testset "[$(backend)] Add time series" verbose = true begin
+        SiennaNEM.add_ts!(
+            sys_sienna, data;
+            horizon=horizon,
+            interval=interval,
+            scenario_name=scenario,
+        )
+        @test InfrastructureSystems.get_forecast_horizon(sys_sienna.data) == horizon
     end
 
-    sys = create_system!(data)
-    @testset "[$(backend)] Create system" begin
-        system_keys = [
-            "sys",
-            "baseMVA",
-            "components"
-        ]
-        missing_keys_system = filter(k -> !haskey(data, k), system_keys)
-        @test isempty(missing_keys_system) || error("Missing system keys: $(missing_keys_system)")
-        @test typeof(data["sys"]) == PSY.System
+    # Build problem template
+    template_uc = nothing
+    @testset "[$(backend)] Build problem template" verbose = true begin
+        template_uc = SiennaNEM.build_problem_base_uc()
+        @test template_uc !== nothing
+        @test typeof(template_uc) <: PowerSimulations.ProblemTemplate
     end
 
-    add_ts!(sys, data, scenario_name=1)
-    @testset "[$(backend)] Add timeseries" begin
-        # TODO: test add ts
+    # Run decision model loop
+    @testset "[$(backend)] Run decision model loop" verbose = true begin
+        decision_models = SiennaNEM.run_decision_model_loop(
+            template_uc, sys_sienna;
+            simulation_folder=simulation_output_folder,
+            simulation_name=simulation_name,
+            simulation_steps=simulation_steps,
+            decision_model_kwargs=(
+                optimizer=optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01),
+            ),
+        )
+        @test decision_models !== nothing
+        @test length(decision_models) <= simulation_steps
+        @test all(dm -> typeof(dm) <: PowerSimulations.DecisionModel, values(decision_models))
     end
 
-    return data, sys
+    return data, sys_sienna
 end
 
-test_system_creation("../data/nem12/csv", "csv")
-test_system_creation("../data/nem12/arrow", "arrow")
+# Test with NEM reliability data
+nem_reliability_data_dir = joinpath(@__DIR__, "../..", "NEM-reliability-suite")
+if isdir(nem_reliability_data_dir)
+    @testset "NEM reliability data - Arrow" verbose = true begin
+        test_system_creation(
+            joinpath(nem_reliability_data_dir, "data", "arrow"),
+            joinpath(nem_reliability_data_dir, "data", "arrow", "schedule-1w"),
+            "arrow",
+        )
+    end
+
+    @testset "NEM reliability data - CSV" verbose = true begin
+        test_system_creation(
+            joinpath(nem_reliability_data_dir, "data", "csv"),
+            joinpath(nem_reliability_data_dir, "data", "csv", "schedule-1w"),
+            "csv",
+        )
+    end
+end
+
+# Test with PISP data
+pisp_data_dir = joinpath(@__DIR__, "../..", "data/pisp-datasets/out-ref4006-poe10")
+if isdir(pisp_data_dir)
+    # Test Arrow format if available
+    arrow_dir = joinpath(pisp_data_dir, "arrow")
+    if isdir(arrow_dir)
+        schedule_names = filter(
+            name -> startswith(name, "schedule-"),
+            readdir(arrow_dir)
+        )
+        if !isempty(schedule_names)
+            @testset "PISP data - Arrow" verbose = true begin
+                test_system_creation(
+                    arrow_dir,
+                    joinpath(arrow_dir, schedule_names[1]),
+                    "arrow",
+                )
+            end
+        end
+    end
+    
+    # Test CSV format if available
+    csv_dir = joinpath(pisp_data_dir, "csv")
+    if isdir(csv_dir)
+        schedule_names = filter(
+            name -> startswith(name, "schedule-"),
+            readdir(csv_dir)
+        )
+        if !isempty(schedule_names)
+            @testset "PISP data - CSV" verbose = true begin
+                test_system_creation(
+                    csv_dir,
+                    joinpath(csv_dir, schedule_names[1]),
+                    "csv",
+                )
+            end
+        end
+    end
+end

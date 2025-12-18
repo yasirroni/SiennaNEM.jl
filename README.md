@@ -1,7 +1,7 @@
 # SiennaNEM
 
-[![Build Status](https://github.com/yasirroni/SiennaNEM.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/yasirroni/SiennaNEM.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/yasirroni/SiennaNEM.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/yasirroni/SiennaNEM.jl)
+[![Build Status](https://github.com/ARPST-UniMelb/SiennaNEM.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/ARPST-UniMelb/SiennaNEM.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/ARPST-UniMelb/SiennaNEM.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ARPST-UniMelb/SiennaNEM.jl)
 
 [SiennaNEM.jl](https://github.com/ARPST-UniMelb/SiennaNEM.jl) enables operational scheduling studies of the NEM using [Sienna](https://nrel-sienna.github.io/Sienna/) and [JuMP](https://jump.dev/). It constructs unit commitment models from [PISP](https://github.com/ARPST-UniMelb/PISP.jl) data and provides analysis and visualization tools for system operations insights.
 
@@ -24,7 +24,7 @@ scenario_name = 1
 
 # data and system
 data = SiennaNEM.get_data(
-    system_data_dir, joinpath(system_data_dir, schedule_name),
+    system_data_dir, joinpath(system_data_dir, schedule_name); file_format="arrow",
 )
 sys = SiennaNEM.create_system!(data)
 SiennaNEM.add_ts!(
@@ -36,7 +36,7 @@ SiennaNEM.add_ts!(
 
 # simulation
 template_uc = SiennaNEM.build_problem_base_uc()
-results = SiennaNEM.run_decision_model_loop(
+decision_models = SiennaNEM.run_decision_model_loop(
     template_uc, sys;
     simulation_folder="examples/result/simulation_folder",
     simulation_name="$(schedule_name)_scenario-$(scenario_name)",
