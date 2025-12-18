@@ -37,7 +37,7 @@ solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 system_data_dir = "data/nem12/arrow"
 schedule_name = "schedule-1w"
 ts_data_dir = joinpath(system_data_dir, schedule_name)
-scenario_name = 1
+scenario = 1
 horizon = Hour(48)
 interval = Hour(24)
 
@@ -48,7 +48,7 @@ SiennaNEM.add_ts!(
     sys, data;
     horizon=horizon,  # horizon of each time slice that will be used in the study
     interval=interval,  # interval within each time slice, not the resolution of the time series
-    scenario_name=scenario_name,  # scenario number
+    scenario=scenario,  # scenario number
 )
 
 # problem template

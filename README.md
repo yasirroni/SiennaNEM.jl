@@ -20,7 +20,7 @@ using HiGHS
 # input variables parameters
 system_data_dir = "../data/pisp-datasets/out-ref4006-poe10/arrow"
 schedule_name = "schedule-2030"
-scenario_name = 1
+scenario = 1
 
 # data and system
 data = SiennaNEM.get_data(
@@ -31,7 +31,7 @@ SiennaNEM.add_ts!(
     sys, data;
     horizon=Hour(24),  # horizon of each time slice
     interval=Hour(24),  # interval between each time slice step in rolling horizon
-    scenario_name=scenario_name,  # scenario number
+    scenario=scenario,  # scenario number
 )
 
 # simulation
@@ -39,7 +39,7 @@ template_uc = SiennaNEM.build_problem_base_uc()
 decision_models = SiennaNEM.run_decision_model_loop(
     template_uc, sys;
     simulation_folder="examples/result/simulation_folder",
-    simulation_name="$(schedule_name)_scenario-$(scenario_name)",
+    simulation_name="$(schedule_name)_scenario-$(scenario)",
     simulation_steps=2,
     decision_model_kwargs=(
         optimizer=optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01),

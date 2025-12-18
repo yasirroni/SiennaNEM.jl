@@ -1,10 +1,10 @@
-function get_data(system_data_dir, ts_data_dir; scenario_name=1, file_format="arrow")
+function get_data(system_data_dir, ts_data_dir; scenario=1, file_format="arrow")
     # TODO:
-    #   Refactor this so that we don't need `scenario_name` in building the
+    #   Refactor this so that we don't need `scenario` in building the
     # system data here.
     data = read_system_data(system_data_dir; file_format=file_format)
     read_ts_data!(data, ts_data_dir; file_format=file_format)
-    add_tsf_data!(data; scenario_name=scenario_name)
+    add_tsf_data!(data; scenario=scenario)
     update_system_data_bound!(data)
     clean_ts_data!(data)
     return data
@@ -103,7 +103,7 @@ end
 
 function add_tsf_data!(
     data::Dict{String,Any};
-    scenario_name=1,
+    scenario=1,
     date_start=nothing,
     date_end=nothing,
 )
@@ -140,30 +140,30 @@ function add_tsf_data!(
     end
 
     data["generator_n_tsf"] = get_full_ts_df(
-        df_generator, df_generator_n_ts, "id_gen", "n", scenario_name, date_start, date_end
+        df_generator, df_generator_n_ts, "id_gen", "n", scenario, date_start, date_end
     )
     data["generator_pmax_tsf"] = get_full_ts_df(
-        df_generator, df_generator_pmax_ts, "id_gen", "pmax", scenario_name, date_start, date_end
+        df_generator, df_generator_pmax_ts, "id_gen", "pmax", scenario, date_start, date_end
     )
 
     data["storage_emax_tsf"] = get_full_ts_df(
-        df_storage, df_storage_emax_ts, "id_ess", "emax", scenario_name, date_start, date_end
+        df_storage, df_storage_emax_ts, "id_ess", "emax", scenario, date_start, date_end
     )
     data["storage_lmax_tsf"] = get_full_ts_df(
-        df_storage, df_storage_lmax_ts, "id_ess", "lmax", scenario_name, date_start, date_end
+        df_storage, df_storage_lmax_ts, "id_ess", "lmax", scenario, date_start, date_end
     )
     data["storage_n_tsf"] = get_full_ts_df(
-        df_storage, df_storage_n_ts, "id_ess", "n", scenario_name, date_start, date_end
+        df_storage, df_storage_n_ts, "id_ess", "n", scenario, date_start, date_end
     )
     data["storage_pmax_tsf"] = get_full_ts_df(
-        df_storage, df_storage_pmax_ts, "id_ess", "pmax", scenario_name, date_start, date_end
+        df_storage, df_storage_pmax_ts, "id_ess", "pmax", scenario, date_start, date_end
     )
 
     data["line_tmax_tsf"] = get_full_ts_df(
-        df_line, df_line_tmax_ts, "id_lin", "tmax", scenario_name, date_start, date_end
+        df_line, df_line_tmax_ts, "id_lin", "tmax", scenario, date_start, date_end
     )
     data["line_tmin_tsf"] = get_full_ts_df(
-        df_line, df_line_tmin_ts, "id_lin", "tmin", scenario_name, date_start, date_end
+        df_line, df_line_tmin_ts, "id_lin", "tmin", scenario, date_start, date_end
     )
 end
 

@@ -4,7 +4,7 @@ using PlotlyJS
 bus_to_name = get_map_from_df(data["bus"], :id_bus, :name)
 
 # Create output directory for plots
-plots_dir = "examples/result/nem12/plots/$(schedule_name)/scenario-$(scenario_name)"
+plots_dir = "examples/result/nem12/plots/$(schedule_name)/scenario-$(scenario)"
 mkpath(plots_dir)
 
 # Define plot configurations: (data_key, id_map, title, ylabel)
@@ -35,7 +35,7 @@ for (data_key, id_map, title, ylabel) in plot_staged_list
     )
     
     # Use same naming convention as CSV: prefix_category_name.extension
-    filename = "$(schedule_name)_scenario-$(scenario_name)_$(data_key).png"
+    filename = "$(schedule_name)_scenario-$(scenario)_$(data_key).png"
     filepath = joinpath(plots_dir, filename)
     savefig(p, filepath)
     println("✓ Saved: $filepath")

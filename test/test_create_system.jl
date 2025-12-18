@@ -47,7 +47,7 @@ function test_system_creation(system_data_dir::String, ts_data_dir::String, back
             sys_sienna, data;
             horizon=horizon,
             interval=interval,
-            scenario_name=scenario,
+            scenario=scenario,
         )
         @test InfrastructureSystems.get_forecast_horizon(sys_sienna.data) == horizon
     end
