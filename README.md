@@ -18,7 +18,7 @@ using Dates
 using HiGHS
 
 # input variables parameters
-system_data_dir = "../data/pisp-datasets/out-ref4006-poe10/arrow"
+system_data_dir = joinpath(@__DIR__, "../..", "NEM-reliability-suite", "data", "arrow")
 schedule_name = "schedule-2030"
 scenario = 1
 
@@ -95,6 +95,7 @@ using Pkg
 using Revise
 Pkg.activate(".")
 Pkg.instantiate()
+Pkg.update()
 ```
 
 ### Test
