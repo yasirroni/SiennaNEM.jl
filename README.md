@@ -60,6 +60,20 @@ Pkg.add("TestEnv")
 using Revise
 ```
 
+Activate environment,
+
+```julia
+Pkg.activate(".")
+Pkg.instantiate()
+```
+
+Install specific `SiennaNEM.jl` commit due to bug fix is not yet merged.
+See: [PR 1517](<https://github.com/NREL-Sienna/PowerSimulations.jl/pull/1517>).
+
+```julia
+Pkg.add(url="https://github.com/NREL-Sienna/PowerSimulations.jl", rev="8683c998901b7943fe98aab506ce74ef3fc0f06c")
+```
+
 Install [`PISP.jl`](https://github.com/ARPST-UniMelb/PISP.jl#),
 
 ```julia
@@ -86,16 +100,6 @@ PISP.build_ISP24_datasets(
     write_arrow  = true,
     scenarios    = [1,2,3]
     )
-```
-
-### Start
-
-```julia
-using Pkg
-using Revise
-Pkg.activate(".")
-Pkg.instantiate()
-Pkg.update()
 ```
 
 ### Test
