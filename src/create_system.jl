@@ -55,6 +55,7 @@ function create_system!(data)
         bus = PSY.ACBus(;
             number=id,
             name=name,
+            available=row.active,
             bustype=ACBusTypes.PV,
             angle=0.0,
             magnitude=1.0,
@@ -127,7 +128,7 @@ function create_system!(data)
 
     if !ENV_HYDRORES_AS_THERMAL
         hydro_dispatch_generators = Dict{Int,Dict{Int,PSY.HydroDispatch}}()
-        hydro_energyreservoir_generators = Dict{Int,Dict{Int,PSY.HydroEnergyReservoir}}()
+        hydro_energyreservoir_generators = Dict{Int,Dict{Int,PSY.HydroTurbine}}()
     else
         hydro_dispatch_generators = Dict{Int,Dict{Int,PSY.ThermalStandard}}()
         hydro_energyreservoir_generators = Dict{Int,Dict{Int,PSY.ThermalStandard}}()
@@ -135,13 +136,15 @@ function create_system!(data)
 
     # NOTE:
     #   In initial year (not looking at future _orig_Generator_n_sched), only
-    # ThermalStandard, HydroDispatch, and HydroEnergyReservoir has n > 1.
+    # ThermalStandard, HydroDispatch, and HydroTurbine has n > 1.
     # 
     #   unique(df_generator[df_generator.n .> 1, :DataType])
     #   3-element Vector{DataType}:
     #    ThermalStandard
     #    HydroDispatch
-    #    HydroEnergyReservoir
+    #    HydroTurbine
+    # 
+    # Read new PSY5 HydroTurbine + HydroReservoir
 
     # NOTE:
     #   1. RenewableDispatch and RenewableNonDispatch is free (cvar == 0)
@@ -257,9 +260,9 @@ function create_system!(data)
                 end
             end
 
-        elseif row.DataType == HydroEnergyReservoir
+        elseif row.DataType == HydroTurbine
             if !ENV_HYDRORES_AS_THERMAL
-                # TODO: support HydroEnergyReservoir
+                # TODO: support HydroTurbine
                 continue
             else
                 hydro_energyreservoir_generators[id] = Dict{Int,PSY.ThermalStandard}()
@@ -415,14 +418,15 @@ function create_system!(data)
     # TODO: understand how storage_capacity=row.emax
     # TODO: add latitude and longitude
     # TODO: inertia
-    # TODO: PS should use HydroPumpedStorage
-    #   https://nrel-sienna.github.io/PowerSystems.jl/stable/model_library/generated_HydroPumpedStorage/#HydroPumpedStorage
+    # TODO: PS should use HydroPumpTurbine
+    # TODOL HydroPumpTurbine to 
+    #   https://nrel-sienna.github.io/PowerSystems.jl/stable/how_to/create_hydro_datasets/#Head-and-Tail-Reservoirs-for-Pumped-Hydropower-Plants
 
-    storages = Dict{Int,Dict{Int,Union{PSY.EnergyReservoirStorage,PSY.HydroPumpedStorage}}}()
+    storages = Dict{Int,Dict{Int,Union{PSY.EnergyReservoirStorage,PSY.HydroPumpTurbine}}}()
     battery_storages = Dict{Int,Dict{Int,PSY.EnergyReservoirStorage}}()
 
     if !ENV_HYDROPUMP_AS_BATTERY
-        hydro_storages = Dict{Int,Dict{Int,PSY.HydroPumpedStorage}}()
+        hydro_storages = Dict{Int,Dict{Int,PSY.HydroPumpTurbine}}()
     else
         hydro_storages = Dict{Int,Dict{Int,PSY.EnergyReservoirStorage}}()
     end
@@ -470,13 +474,7 @@ function create_system!(data)
                 battery_storages[id][i] = storage
                 add_component!(sys, storage)
             end
-        elseif row.DataType == HydroPumpedStorage
-            # NOTE:
-            #   HydroPumpedStorage didn't support storage_level_limits
-            #   HydroPumpedStorage support different data for lower and upper reservoir
-            #   HydroPumpedStorage reactive_power_limits_pump, not fixed power factor
-            #   HydroPumpedStorage status support three types (OFF, GEN, PUMP)
-
+        elseif row.DataType == HydroPumpTurbine
             # TODO:
             #   Is this correct?
             # 
@@ -486,37 +484,37 @@ function create_system!(data)
             if !ENV_HYDROPUMP_AS_BATTERY
                 # NOTE: reactive_power_limits_max is used for reactive_power_limits_pump and reactive_power_limits
                 reactive_power_limits_max = row.capacity * sqrt((1 / row.powerfactor^2) - 1)
-                storages[id] = Dict{Int,PSY.HydroPumpedStorage}()
-                hydro_storages[id] = Dict{Int,PSY.HydroPumpedStorage}()
+                storages[id] = Dict{Int,PSY.HydroPumpTurbine}()
+                hydro_storages[id] = Dict{Int,PSY.HydroPumpTurbine}()
                 for i in 1:row.n
                     name = string(id, "_", i)
-                    storage = HydroPumpedStorage(;
-                        name=name,
-                        available=row.active,
-                        bus=buses[row.id_bus],
-                        active_power=0, # Per-unitized by device base_power
-                        reactive_power=0, # Per-unitized by device base_power
-                        rating=1,
-                        base_power=row.capacity, # MVA
-                        prime_mover_type=row.PrimeMovers,
-                        active_power_limits=(min=0, max=output_active_power_limits_max),
-                        reactive_power_limits=(min=0, max=reactive_power_limits_max),
-                        ramp_limits=nothing,
-                        time_limits=nothing,
-                        rating_pump=1,
-                        active_power_limits_pump=(min=0, max=input_active_power_limits_max),
-                        reactive_power_limits_pump=(min=0, max=reactive_power_limits_max),
-                        ramp_limits_pump=nothing,
-                        time_limits_pump=nothing,
-                        storage_capacity=(up=storage_capacity, down=storage_capacity),
-                        inflow=0.0,
-                        outflow=0.0,
-                        initial_storage=(up=initial_storage_capacity_level, down=1 - initial_storage_capacity_level),
-                        storage_target=(up=initial_storage_capacity_level, down=1 - initial_storage_capacity_level),
-                        operation_cost=StorageCost(nothing),  # only support based MW charge and discharge
-                        pump_efficiency=row.ch_eff,
-                        conversion_factor=row.dch_eff,
-                    )
+                    # storage = HydroPumpTurbine(;
+                    #     name=name,
+                    #     available=row.active,
+                    #     bus=buses[row.id_bus],
+                    #     active_power=0, # Per-unitized by device base_power
+                    #     reactive_power=0, # Per-unitized by device base_power
+                    #     rating=1,
+                    #     base_power=row.capacity, # MVA
+                    #     prime_mover_type=row.PrimeMovers,
+                    #     active_power_limits=(min=0, max=output_active_power_limits_max),
+                    #     reactive_power_limits=(min=0, max=reactive_power_limits_max),
+                    #     ramp_limits=nothing,
+                    #     time_limits=nothing,
+                    #     rating_pump=1,
+                    #     active_power_limits_pump=(min=0, max=input_active_power_limits_max),
+                    #     reactive_power_limits_pump=(min=0, max=reactive_power_limits_max),
+                    #     ramp_limits_pump=nothing,
+                    #     time_limits_pump=nothing,
+                    #     storage_capacity=(up=storage_capacity, down=storage_capacity),
+                    #     inflow=0.0,
+                    #     outflow=0.0,
+                    #     initial_storage=(up=initial_storage_capacity_level, down=1 - initial_storage_capacity_level),
+                    #     storage_target=(up=initial_storage_capacity_level, down=1 - initial_storage_capacity_level),
+                    #     operation_cost=StorageCost(nothing),  # only support based MW charge and discharge
+                    #     pump_efficiency=row.ch_eff,
+                    #     conversion_factor=row.dch_eff,
+                    # )
                     storages[id][i] = storage
                     hydro_storages[id][i] = storage
                     add_component!(sys, storage)

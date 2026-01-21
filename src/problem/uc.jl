@@ -11,7 +11,9 @@ function build_problem_base_uc()
     set_device_model!(template_uc, RenewableNonDispatch, FixedOutput)
     set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 
-    # TODO: bug in SimulationSequence
+    # TODO:
+    #   1. bug in SimulationSequence
+    #   2. bug in PSY5 time series handling
     storage_model = DeviceModel(
         EnergyReservoirStorage,
         StorageDispatchWithReserves;

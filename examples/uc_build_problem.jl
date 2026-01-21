@@ -34,7 +34,7 @@ solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 # bug in Sienna.
 
 # input variables parameters
-system_data_dir = "data/nem12/arrow"
+system_data_dir = joinpath(@__DIR__, "../..", "NEM-reliability-suite", "data", "arrow")
 schedule_name = "schedule-1w"
 ts_data_dir = joinpath(system_data_dir, schedule_name)
 scenario = 1
