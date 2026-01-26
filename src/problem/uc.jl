@@ -11,9 +11,12 @@ function build_problem_base_uc()
     set_device_model!(template_uc, RenewableNonDispatch, FixedOutput)
     set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 
-    # TODO:
-    #   1. bug in SimulationSequence
-    #   2. bug in PSY5 time series handling
+    #   Warning: Currently, there is a bug in Sienna that prevents the number of
+    # batteries to be higher than time horizon. Since there is about 50 active
+    # batteries in the NEM system model, we use `horizon = Hour(72)` to make sure
+    # the time horizon is bigger than the number of batteries.
+    # See: https://github.com/NREL-Sienna/StorageSystemsSimulations.jl/issues/76
+
     storage_model = DeviceModel(
         EnergyReservoirStorage,
         StorageDispatchWithReserves;

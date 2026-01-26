@@ -36,7 +36,7 @@ SiennaNEM.add_ts!(
 
 # simulation
 template_uc = SiennaNEM.build_problem_base_uc()
-decision_models = SiennaNEM.run_decision_model_loop(
+decision_models = SiennaNEM.run_simulation(
     template_uc, sys;
     simulation_folder="examples/result/simulation_folder",
     simulation_name="$(schedule_name)_scenario-$(scenario)",
@@ -63,6 +63,7 @@ using Revise
 Activate environment,
 
 ```julia
+using Pkg
 Pkg.activate(".")
 Pkg.instantiate()
 ```

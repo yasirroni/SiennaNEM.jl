@@ -71,7 +71,7 @@ for scenario in scenarios
             # 3. RUN DECISION MODEL LOOP
             # ============================================================
             println("\n[3/5] Running decision model loop...")
-            res_dict = SiennaNEM.run_decision_model_loop(
+            res_dict = SiennaNEM.run_simulation(
                 template_uc, sys;
                 schedule_horizon=schedule_horizon,
                 window_shift=window_shift,

@@ -18,4 +18,4 @@ update_system_data_bound!(data)
 sys = create_system!(data)
 add_ts!(sys, data; scenario=scenario)
 
-to_json(sys, "examples/result/nem12/json/schedule-1w.json", force=true)
+to_json(sys, "examples/result/debug/schedule-1w.json", force=true)
