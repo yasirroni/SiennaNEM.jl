@@ -39,6 +39,7 @@ solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 # the time horizon is bigger than the number of batteries.
 # See: https://github.com/NREL-Sienna/StorageSystemsSimulations.jl/issues/76
 
+
 # input variables parameters
 system_data_dir = joinpath(@__DIR__, "../..", "NEM-reliability-suite", "data", "arrow")
 schedule_name = "schedule-1w"

@@ -445,6 +445,17 @@ function create_system!(data)
 
         id = row.id_ess
         if row.DataType == EnergyReservoirStorage
+            # TODO:
+            #   To mimic actual market behaviour, charge cost can be 0 because
+            # curtailment is free. If it is charged from thermal generator, the
+            # cost is already included in the generation cost, thus it already
+            # reflects the market behaviour. However, for discharge, it should
+            # have cost to reflect the behaviour of storage operator that wants
+            # to make profit from the market. At least, the cost should cover
+            # the degradation cost.
+            #   In 2030 scenario, the VRE is very high. A 0 cost for battery
+            # operation causes it to charge and discharge irresponsibly.
+
             storage_level_limits_min = row.emin / 100
             storages[id] = Dict{Int,PSY.EnergyReservoirStorage}()
             battery_storages[id] = Dict{Int,PSY.EnergyReservoirStorage}()

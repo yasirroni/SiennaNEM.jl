@@ -66,13 +66,7 @@ Activate environment,
 using Pkg
 Pkg.activate(".")
 Pkg.instantiate()
-```
-
-Install specific `SiennaNEM.jl` commit due to bug fix is not yet merged.
-See: [PR 1517](<https://github.com/NREL-Sienna/PowerSimulations.jl/pull/1517>).
-
-```julia
-Pkg.add(url="https://github.com/NREL-Sienna/PowerSimulations.jl", rev="8683c998901b7943fe98aab506ce74ef3fc0f06c")
+using Revise
 ```
 
 Install [`PISP.jl`](https://github.com/ARPST-UniMelb/PISP.jl#),
@@ -81,6 +75,19 @@ Install [`PISP.jl`](https://github.com/ARPST-UniMelb/PISP.jl#),
 using Pkg
 Pkg.develop(path="../PISP.jl")
 ```
+
+Install specific `PowerSimulations.jl` and `StorageSystemsSimulations.jl` commit due to
+bug fix. See: [PR 1517](<https://github.com/NREL-Sienna/PowerSimulations.jl/pull/1517>)
+and [PR 78](<https://github.com/NREL-Sienna/StorageSystemsSimulations.jl/pull/78>).
+
+```julia
+Pkg.add(url="https://github.com/NREL-Sienna/PowerSimulations.jl", rev="8683c998901b7943fe98aab506ce74ef3fc0f06c")
+Pkg.add(url="https://github.com/yasirroni/StorageSystemsSimulations.jl", rev="dcd9c46071bc9abf511314dfdf85efaacf8f8cb8")
+```
+
+> [!Note]  
+> If new version of `PowerSimulations.jl` and `StorageSystemsSimulations.jl` are
+> released, please use the updated version.
 
 ### Add data
 

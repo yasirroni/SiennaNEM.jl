@@ -18,7 +18,7 @@ function clean_ts_data!(data::Dict{String,Any})
     df_generator_ts_unique_id_gen = DataFrame(id_gen=unique_id_gen_ts)
     df_generator_ts_unique_id_gen = leftjoin(
         df_generator_ts_unique_id_gen,
-        df_generator[:, [:id_gen, :name, :tech, :DataType]], on=:id_gen
+        df_generator[:, [:id_gen, :name, :tech, :DataType]], on=:id_gen, order=:left
     )
     df_generator_ts_unique_id_gen = dropmissing(df_generator_ts_unique_id_gen, :name)
     unique_id_gen_ts = df_generator_ts_unique_id_gen[:, :id_gen]
@@ -93,6 +93,8 @@ function add_ts!(
     #   The format of df_demand_ts and df_generator_ts should follow PISP.jl format:
     #       df_demand_ts: [:id_dem, :date, :value]
     #       df_generator_ts: [:id_gen, :date, :value]
+    # 
+    #   Data :value is in MW.
 
     # Add demand time series
     grouped_demand = groupbyd(df_demand_ts, :id_dem)

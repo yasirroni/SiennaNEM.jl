@@ -84,7 +84,7 @@ for scenario in scenarios
             # 4. EXTRACT AND EXPORT RESULTS
             # ============================================================
             println("\n[4/5] Extracting optimization results...")
-            dfs_res = SiennaNEM.get_problem_results(res_dict)
+            dfs_res = SiennaNEM.get_results_dataframes(res_dict)
 
             # Create output directories with scenario-{n}/schedule-{year} structure
             output_prefix = "$(schedule_name)_scenario-$(scenario)"

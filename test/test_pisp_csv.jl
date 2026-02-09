@@ -1,3 +1,4 @@
+nem_reliability_data_dir = joinpath(@__DIR__, "../..", "NEM-reliability-suite")
 pisp_data_dir = joinpath(nem_reliability_data_dir, "data/pisp-datasets/out-ref4006-poe10")
 include("test_run_simulation.jl")
 @testset "PISP data - CSV" verbose = true begin

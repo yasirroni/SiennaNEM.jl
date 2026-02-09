@@ -100,18 +100,17 @@ if !isdefined(Main, :area_to_name)
     )
 end
 
-# TODO: use,
-#   read_expressions
-#   read_aux_variables
-#   read_parameters
-#   read_variables
-#   read_duals
 if !isdefined(Main, :optimization_result_handlers)
     const optimization_result_handlers = [
-        ("expression", list_expression_names, read_expression),
-        ("aux_variable", list_aux_variable_names, read_aux_variable),
-        ("parameter", list_parameter_names, read_parameter),
-        ("variable", list_variable_names, read_variable),
-        ("dual", list_dual_names, read_dual),
+        ("expressions", read_expressions),
+        ("aux_variables", read_aux_variables),
+        ("parameters", read_parameters),
+        ("variables", read_variables),
+        ("duals", read_duals),
+        ("realized_expressions", read_realized_expressions),
+        ("realized_aux_variables", read_realized_aux_variables),
+        ("realized_parameters", read_realized_parameters),
+        ("realized_variables", read_realized_variables),
+        ("realized_duals", read_realized_duals),
     ]
 end

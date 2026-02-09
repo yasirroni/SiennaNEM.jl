@@ -11,18 +11,12 @@ function build_problem_base_uc()
     set_device_model!(template_uc, RenewableNonDispatch, FixedOutput)
     set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
 
-    #   Warning: Currently, there is a bug in Sienna that prevents the number of
-    # batteries to be higher than time horizon. Since there is about 50 active
-    # batteries in the NEM system model, we use `horizon = Hour(72)` to make sure
-    # the time horizon is bigger than the number of batteries.
-    # See: https://github.com/NREL-Sienna/StorageSystemsSimulations.jl/issues/76
-
     storage_model = DeviceModel(
         EnergyReservoirStorage,
         StorageDispatchWithReserves;
         attributes=Dict(
             "reservation" => true,
-            "energy_target" => true,
+            "energy_target" => false,  # bug in Sienna as it is a weak constraint
             "cycling_limits" => false,
             "regularization" => false,
         ),

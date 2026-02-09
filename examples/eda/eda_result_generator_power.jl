@@ -1,74 +1,89 @@
 using DataFrames, OrderedCollections
 
-
-## Generator Output Power by Bus
+## Generator Post Processing
 # Create mapping from bus ID to component columns
 # NOTE: currently, the Hydro is included as ThermalStandard
 dfs_res["post"] = Dict{String, Any}()  # for storing post processing results
 add_maps!(data)
 
 timecol = :DateTime
-df_datetime = DataFrame(
-    timecol => dfs_res["variable"]["ActivePowerVariable__ThermalStandard"][!, timecol]
-)
 
-df_gen_pg_list = [
-    dfs_res["variable"]["ActivePowerVariable__ThermalStandard"],
-    dfs_res["variable"]["ActivePowerVariable__RenewableDispatch"],
-    dfs_res["parameter"]["ActivePowerTimeSeriesParameter__RenewableNonDispatch"],
-]
+if results isa PowerSimulations.SimulationProblemResults
+    variable_key = "realized_variable"
+    parameter_key = "realized_parameter"
+elseif results isa PowerSimulations.OptimizationProblemResults
+    variable_key = "variable"
+    parameter_key = "parameter"
+end
 
-df_gen_pg =  hcat(
-    df_gen_pg_list[1],
-    [select(df, Not(timecol)) for df in df_gen_pg_list[2:end]]...
+## Part 1: All Generators (df_gen_pg)
+# Combine all generation data
+df_gen_pg = vcat(
+    dfs_res[variable_key]["ActivePowerVariable__ThermalStandard"],
+    dfs_res[variable_key]["ActivePowerVariable__RenewableDispatch"],
+    dfs_res[parameter_key]["ActivePowerTimeSeriesParameter__RenewableNonDispatch"],
 )
-data_cols = get_component_columns(df_gen_pg; timecol=timecol)
+dfs_res["post"]["gen_pg"] = df_gen_pg
+
+# Create mapping from generator names to buses
 gen_to_bus = data["map"]["gen_to_bus"]  # use id_gen
-gen_col_to_bus = get_col_to_group(data_cols, gen_to_bus)  # use id_gen + id_unit
-bus_to_gen_col = get_group_to_col(gen_col_to_bus)  # map bus to columns
+gen_n_to_bus = get_col_to_group(unique(df_gen_pg[:, :name]), gen_to_bus)  # use id_gen + id_unit
 
-# Sum columns for each bus
-df_bus_gen_pg = sum_by_group(df_gen_pg, bus_to_gen_col, df_datetime)
+# Sum by bus
+df_bus_gen_pg = sum_by_group(df_gen_pg, name_to_group=gen_n_to_bus)
 dfs_res["post"]["bus_gen_pg"] = df_bus_gen_pg
 
-## Generator Primary Frequency Response by Bus
-df_gen_uc = dfs_res["variable"]["OnVariable__ThermalStandard"]
-df_gen_pg_thermal = dfs_res["variable"]["ActivePowerVariable__ThermalStandard"]
-
-# Update data["generator"] with extended version
-gen_unit_to_pmax = data["map"]["gen_unit_to_pmax"] 
-gen_unit_to_pfrmax = data["map"]["gen_unit_to_pfrmax"]
-
-# Calculate PFR allocation
-thermal_cols = get_component_columns(df_gen_pg_thermal; timecol=timecol)
-power_matrix = Matrix(df_gen_pg_thermal[!, thermal_cols])
-uc_matrix = Matrix(df_gen_uc[!, thermal_cols])
-pmax_vector = [gen_unit_to_pmax[col] for col in thermal_cols if haskey(gen_unit_to_pmax, col)]
-pfrmax_vector = [gen_unit_to_pfrmax[col] for col in thermal_cols if haskey(gen_unit_to_pfrmax, col)]
-available_capacity = (pmax_vector' .* uc_matrix) .- power_matrix
-pfr_limit = pfrmax_vector' .* uc_matrix
-pfr_allocation = max.(min.(available_capacity, pfr_limit), 0.0)
-df_gen_pfr = hcat(df_datetime, DataFrame(pfr_allocation, thermal_cols))
-
-# Create PFR allocation per bus
-df_bus_gen_pfr = sum_by_group(df_gen_pfr, bus_to_gen_col, df_datetime)
-dfs_res["post"]["bus_gen_pfr"] = df_bus_gen_pfr
-
-## Generator Output Power and PFR by Area
-area_to_bus = data["map"]["area_to_bus"]
-
-# Area-wise Generation
-df_area_gen_pg = sum_by_group(df_bus_gen_pg, area_to_bus, df_datetime)
+# Sum by area
+bus_to_area = data["map"]["bus_to_area"]
+df_area_gen_pg = sum_by_group(df_bus_gen_pg, name_to_group=bus_to_area)
 dfs_res["post"]["area_gen_pg"] = df_area_gen_pg
 
-# Area-wise PFR Allocation
-df_area_gen_pfr = sum_by_group(df_bus_gen_pfr, area_to_bus, df_datetime)
-dfs_res["post"]["area_gen_pfr"] = df_area_gen_pfr
+## Part 2: Thermal Standard Generators (df_tgen)
+# Start with thermal generator active power
+df_tgen = copy(dfs_res[variable_key]["ActivePowerVariable__ThermalStandard"])
+rename!(df_tgen, :value => :active_power)
 
-## Check violation
-# Check for violations against pmax
+# Add unit commitment
+df_gen_unit_commitment = dfs_res[variable_key]["OnVariable__ThermalStandard"]
+df_tgen = leftjoin(
+    df_tgen,
+    rename(df_gen_unit_commitment, :value => :unit_commitment),
+    on=[timecol, :name],
+    order=:left,
+)
+
+# Add generator parameters (pmax and pfrmax)
+gen_unit_to_pmax = data["map"]["gen_unit_to_pmax"] 
+gen_unit_to_pfrmax = data["map"]["gen_unit_to_pfrmax"]
+df_tgen.maximum_active_power = [get(gen_unit_to_pmax, name, 0.0) for name in df_tgen.name]
+df_tgen.maximum_primary_frequency_response = [get(gen_unit_to_pfrmax, name, 0.0) for name in df_tgen.name]
+
+# Calculate available capacity and PFR allocation
+df_tgen.available_capacity = (df_tgen.maximum_active_power .* df_tgen.unit_commitment) .- df_tgen.active_power
+df_tgen.pfr_limit = df_tgen.maximum_primary_frequency_response .* df_tgen.unit_commitment
+df_tgen.primary_frequency_response = max.(min.(df_tgen.available_capacity, df_tgen.pfr_limit), 0.0)
+
+# Store df_tgen
+dfs_res["post"]["tgen"] = df_tgen
+
+# Create df_tgen_pg by selecting columns from df_tgen
+df_tgen_pg = select(df_tgen, timecol, :name, :primary_frequency_response => :value)
+
+# Sum by bus
+df_bus_tgen_pfr = sum_by_group(df_tgen_pg, name_to_group=gen_n_to_bus)
+dfs_res["post"]["bus_tgen_pfr"] = df_bus_tgen_pfr
+
+# Sum by Area
+df_area_tgen_pfr = sum_by_group(df_bus_tgen_pfr, name_to_group=bus_to_area)
+dfs_res["post"]["area_tgen_pfr"] = df_area_tgen_pfr
+
+## Check violation for thermal generators
 threshold = 1e-6
-violation_mask = (power_matrix .- pmax_vector') .> threshold
-if any(violation_mask)  # check if any violations exist
+df_tgen.violation = (df_tgen.active_power .- df_tgen.maximum_active_power) .> threshold
+
+if any(df_tgen.violation)
     println("Warning: Violations against pmax detected.")
+    
+    # Show which generators violated and when
+    println(filter(row -> row.violation, df_tgen))
 end

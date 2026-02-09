@@ -18,7 +18,7 @@ function test_run_simulation(system_data_dir::String, ts_data_dir::String, backe
         ts_data_dir: Path to time series data directory
         backend: Backend type, "arrow" or "csv"
     """
-    horizon = Hour(72)
+    horizon = Hour(42)
     interval = Hour(24)
     scenario = 1
     simulation_output_folder = "sienna-files"
