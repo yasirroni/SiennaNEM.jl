@@ -63,6 +63,16 @@ jobs:
 
       # Cache, build, and test
       - uses: julia-actions/cache@v2
+
+      # Install specific package versions
+      - name: Install specific PowerSimulations and StorageSystemsSimulations commits
+        run: |
+          julia --project=. -e '
+            using Pkg
+            Pkg.add(url="https://github.com/NREL-Sienna/PowerSimulations.jl", rev="8683c998901b7943fe98aab506ce74ef3fc0f06c")
+            Pkg.add(url="https://github.com/yasirroni/StorageSystemsSimulations.jl", rev="dcd9c46071bc9abf511314dfdf85efaacf8f8cb8")
+          '
+
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
