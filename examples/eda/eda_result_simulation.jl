@@ -15,3 +15,12 @@ SiennaNEM.export_optimization_results_to_csv(
     "examples/result/nem12/csv/$(schedule_name)/scenario-$(scenario)"; 
     prefix="$(schedule_name)_scenario-$(scenario)"
 )
+
+## To Export to PRASNEM wide format:
+# dfs_res_wide = Dict{String, Dict{String, Any}}()
+# for key in keys(dfs_res["realized"])
+#     dfs_res_wide[key] = Dict{String, Any}()
+#     for key_ in keys(dfs_res["realized"][key])
+#         dfs_res_wide[key][key_] = SiennaNEM.long_to_wide(dfs_res["realized"][key][key_])
+#     end
+# end

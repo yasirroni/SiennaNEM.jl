@@ -80,11 +80,13 @@ function get_results_dataframes(results::Union{PowerSimulations.SimulationProble
         "dual" => read_duals(results),
     )
     if results isa PowerSimulations.SimulationProblemResults
-        dfs["realized_expression"] = read_realized_expressions(results)
-        dfs["realized_aux_variable"] = read_realized_aux_variables(results)
-        dfs["realized_parameter"] = read_realized_parameters(results)
-        dfs["realized_variable"] = read_realized_variables(results)
-        dfs["realized_dual"] = read_realized_duals(results)
+        dfs["realized"] = Dict(
+            "expression" => read_realized_expressions(results),
+            "aux_variable" => read_realized_aux_variables(results),
+            "parameter" => read_realized_parameters(results),
+            "variable" => read_realized_variables(results),
+            "dual" => read_realized_duals(results),
+        )
     end
     return dfs
 end

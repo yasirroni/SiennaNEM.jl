@@ -385,3 +385,67 @@ function substract_df_long(df1, df2; colname=:name)
     transform!(df, [:value, :value_1] => (-) => :value)
     select!(df, [:DateTime, colname, :value])
 end
+
+"""
+    long_to_wide(df::DataFrame;
+    time_col::Union{String,Symbol}=:DateTime,
+    name_col::Union{String,Symbol}=:name,
+    value_col::Union{String,Symbol}=:value,
+    time_as_col::Bool=true)
+                 time_col::Union{String,Symbol}=:DateTime,
+                 name_col::Union{String,Symbol}=:name,
+                 value_col::Union{String,Symbol}=:value,
+                 time_as_col::Bool=false)
+
+Convert a DataFrame from long format to wide format for PRAS. It needs to be noted that
+    the default wide format is different (transposed) from what Sienna table wide format
+    is because we this function is designed for SiennaNEM - PRASNEM compatibility.
+
+# Arguments
+- `df::DataFrame`: Input DataFrame in long format
+- `time_col`: Column name for the date (default: :DateTime)
+- `name_col`: Column name containing category names (default: :name)
+- `value_col`: Column name containing values (default: :value)
+- `time_as_col`: If true (default), time as columns with categories become rows.
+              If false, time becomes rows with categories as columns.
+
+# Returns
+- `DataFrame`: Wide format DataFrame
+
+# Examples
+```julia
+# Standard: categories as rows, time as columns
+df_wide = long_to_wide(df_long)
+
+# Transposed: time as rows, categories as columns
+df_wide_t = long_to_wide(df_long, time_as_col=false)
+```
+"""
+function long_to_wide(df::DataFrame;
+    time_col::Union{String,Symbol}=:DateTime,
+    name_col::Union{String,Symbol}=:name,
+    value_col::Union{String,Symbol}=:value,
+    time_as_col::Bool=true)
+
+    unique_times = unique(df[!, time_col])
+    unique_names = unique(df[!, name_col])
+    if time_as_col
+        # Standard mode: categories as rows, time as columns
+        result_df = DataFrame(name_col => unique_names)
+
+        for time_point in unique_times
+            filtered_rows = filter(row -> row[time_col] == time_point, df)
+            result_df[!, Symbol(time_point)] = filtered_rows[!, value_col]
+        end
+    else
+        # Transposed mode: time as rows, categories as columns
+        result_df = DataFrame(time_col => unique_times)
+
+        for category in unique_names
+            filtered_rows = filter(row -> row[name_col] == category, df)
+            result_df[!, Symbol(category)] = filtered_rows[!, value_col]
+        end
+    end
+
+    return result_df
+end

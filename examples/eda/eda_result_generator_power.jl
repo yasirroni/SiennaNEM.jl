@@ -3,25 +3,27 @@ using DataFrames, OrderedCollections
 ## Generator Post Processing
 # Create mapping from bus ID to component columns
 # NOTE: currently, the Hydro is included as ThermalStandard
-dfs_res["post"] = Dict{String, Any}()  # for storing post processing results
-add_maps!(data)
 
 timecol = :DateTime
+if !haskey(dfs_res, "post")
+    dfs_res["post"] = Dict{String, Any}()
+end
+if !haskey(dfs_res, "map")
+    add_maps!(data)
+end
 
 if results isa PowerSimulations.SimulationProblemResults
-    variable_key = "realized_variable"
-    parameter_key = "realized_parameter"
+    dfs_res_ = dfs_res["realized"]
 elseif results isa PowerSimulations.OptimizationProblemResults
-    variable_key = "variable"
-    parameter_key = "parameter"
+    dfs_res_ = dfs_res
 end
 
 ## Part 1: All Generators (df_gen_pg)
 # Combine all generation data
 df_gen_pg = vcat(
-    dfs_res[variable_key]["ActivePowerVariable__ThermalStandard"],
-    dfs_res[variable_key]["ActivePowerVariable__RenewableDispatch"],
-    dfs_res[parameter_key]["ActivePowerTimeSeriesParameter__RenewableNonDispatch"],
+    dfs_res_["variable"]["ActivePowerVariable__ThermalStandard"],
+    dfs_res_["variable"]["ActivePowerVariable__RenewableDispatch"],
+    dfs_res_["parameter"]["ActivePowerTimeSeriesParameter__RenewableNonDispatch"],
 )
 dfs_res["post"]["gen_pg"] = df_gen_pg
 
@@ -40,11 +42,11 @@ dfs_res["post"]["area_gen_pg"] = df_area_gen_pg
 
 ## Part 2: Thermal Standard Generators (df_tgen)
 # Start with thermal generator active power
-df_tgen = copy(dfs_res[variable_key]["ActivePowerVariable__ThermalStandard"])
+df_tgen = copy(dfs_res_["variable"]["ActivePowerVariable__ThermalStandard"])
 rename!(df_tgen, :value => :active_power)
 
 # Add unit commitment
-df_gen_unit_commitment = dfs_res[variable_key]["OnVariable__ThermalStandard"]
+df_gen_unit_commitment = dfs_res_["variable"]["OnVariable__ThermalStandard"]
 df_tgen = leftjoin(
     df_tgen,
     rename(df_gen_unit_commitment, :value => :unit_commitment),

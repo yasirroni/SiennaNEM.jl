@@ -1,30 +1,29 @@
 using DataFrames, OrderedCollections
 
 ## Energy Storage System Post Processing
-# Create post-processing dictionary if it doesn't exist
+timecol = :DateTime
 if !haskey(dfs_res, "post")
     dfs_res["post"] = Dict{String, Any}()
 end
-
-timecol = :DateTime
+if !haskey(dfs_res, "map")
+    add_maps!(data)
+end
 
 if results isa PowerSimulations.SimulationProblemResults
-    variable_key = "realized_variable"
-    parameter_key = "realized_parameter"
+    dfs_res_ = dfs_res["realized"]
 elseif results isa PowerSimulations.OptimizationProblemResults
-    variable_key = "variable"
-    parameter_key = "parameter"
+    dfs_res_ = dfs_res
 end
 
 ## Energy Storage System Shortage and Surplus (Energy Target)
 # timecol_target = :time_index
 # ess_threshold = 1e-6
 # df_ess_shortage = rename(
-#     dfs_res[variable_key]["StorageEnergyShortageVariable__EnergyReservoirStorage"],
+#     dfs_res_["variable"]["StorageEnergyShortageVariable__EnergyReservoirStorage"],
 #     :value => :shortage
 # )
 # df_ess_surplus = rename(
-#     dfs_res[variable_key]["StorageEnergySurplusVariable__EnergyReservoirStorage"],
+#     dfs_res_["variable"]["StorageEnergySurplusVariable__EnergyReservoirStorage"],
 #     :value => :surplus
 # )
 # df_ess_target = leftjoin(
@@ -52,9 +51,9 @@ end
 
 ## Part 1: All Energy Storage Systems (df_ess)
 # Get ESS data
-df_ess_e = dfs_res[variable_key]["EnergyVariable__EnergyReservoirStorage"]
-df_ess_ch = dfs_res[variable_key]["ActivePowerInVariable__EnergyReservoirStorage"]
-df_ess_dch = dfs_res[variable_key]["ActivePowerOutVariable__EnergyReservoirStorage"]
+df_ess_e = dfs_res_["variable"]["EnergyVariable__EnergyReservoirStorage"]
+df_ess_ch = dfs_res_["variable"]["ActivePowerInVariable__EnergyReservoirStorage"]
+df_ess_dch = dfs_res_["variable"]["ActivePowerOutVariable__EnergyReservoirStorage"]
 
 # Store individual ESS data
 dfs_res["post"]["ess_e"] = df_ess_e
