@@ -21,6 +21,10 @@ include("utils.jl")
 
 include("problem/uc.jl")
 include("dev/forward_fill_sched.jl")
+include("postprocess/demand.jl")
+include("postprocess/generator.jl")
+include("postprocess/storage.jl")
+
 
 # Environment variables for configuration
 const ENV_HYDRORES_AS_THERMAL = true
@@ -45,6 +49,7 @@ export get_map_from_df, get_grouped_map_from_df, get_inverse_map
 export get_bus_to_gen, get_gen_to_bus, get_col_to_group, get_group_to_col
 export sum_by_group, get_component_columns
 export get_full_ts_df, add_tsf_data!
+export postprocess_demand_power, postprocess_generator_power, postprocess_storage_power
 export plot_stacked
 
 export build_problem_base_uc

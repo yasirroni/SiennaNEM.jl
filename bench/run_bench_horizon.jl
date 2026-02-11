@@ -10,6 +10,7 @@ include("bench_horizon.jl")
 # --- Input paths ---
 const DATA_DIR = "data/nem12/arrow"
 const TS_DIR = joinpath(DATA_DIR, "schedule-1w")
+const DF = DataFrames
 
 # --- Run benchmarks ---
 println("Running horizon benchmarks...")
@@ -91,10 +92,10 @@ df_wide.solve_s = round.(df_wide.solve ./ 1000, digits=2)
 df_wide.solve_min = round.(df_wide.solve ./ 60000, digits=2)
 df_wide.total_s = round.(df_wide.total ./ 1000, digits=2)
 df_wide.total_min = round.(df_wide.total ./ 60000, digits=2)
-rename!(df_wide, :model => :model_ms)
-rename!(df_wide, :build => :build_ms)
-rename!(df_wide, :solve => :solve_ms)
-rename!(df_wide, :total => :total_ms)
+DF.rename!(df_wide, :model => :model_ms)
+DF.rename!(df_wide, :build => :build_ms)
+DF.rename!(df_wide, :solve => :solve_ms)
+DF.rename!(df_wide, :total => :total_ms)
 
 output_dir = "bench/csv"
 mkpath(output_dir)
@@ -107,14 +108,14 @@ CSV.write(filepath, df_wide)
 # filename = "bench_horizon_compact.csv"
 # filepath = joinpath(output_dir, filename)
 # df_wide = CSV.read(filepath, DataFrame)
-rename!(df_wide, :model_ms => "model (ms)")
-rename!(df_wide, :build_ms => "build (ms)")
-rename!(df_wide, :solve_ms => "solve (ms)")
-rename!(df_wide, :solve_s => "solve (s)")
-rename!(df_wide, :total_ms => "total (ms)")
-rename!(df_wide, :total_s => "total (s)")
-rename!(df_wide, :total_min => "total (minute)")
-rename!(df_wide, :horizon_hour => "horizon (hour)")
+DF.rename!(df_wide, :model_ms => "model (ms)")
+DF.rename!(df_wide, :build_ms => "build (ms)")
+DF.rename!(df_wide, :solve_ms => "solve (ms)")
+DF.rename!(df_wide, :solve_s => "solve (s)")
+DF.rename!(df_wide, :total_ms => "total (ms)")
+DF.rename!(df_wide, :total_s => "total (s)")
+DF.rename!(df_wide, :total_min => "total (minute)")
+DF.rename!(df_wide, :horizon_hour => "horizon (hour)")
 df_wide[!, ["horizon (hour)", "model (ms)", "build (ms)", "solve (s)", "total (s)"]]
 
 using PrettyTables
