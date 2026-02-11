@@ -233,8 +233,13 @@ function add_maps!(data)
     area_to_bus = get_grouped_map_from_df(data["bus"], :id_area, :id_bus)
     gen_to_units = get_grouped_map_from_df(data["generator_extended"], :id_gen, :id_unit)
 
+    dem_to_bus = get_map_from_df(data["demand"], :id_dem, :id_bus)
+    ess_to_bus = get_map_from_df(data["storage"], :id_ess, :id_bus)
+
     data["map"] = Dict(
         "bus_to_area" => bus_to_area,
+        "dem_to_bus" => dem_to_bus,
+        "ess_to_bus" => ess_to_bus,
         "gen_unit_to_pmax" => gen_unit_to_pmax,
         "gen_unit_to_pfrmax" => gen_unit_to_pfrmax,
         "gen_to_bus" => gen_to_bus,
