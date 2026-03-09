@@ -25,11 +25,6 @@ include("postprocess/demand.jl")
 include("postprocess/generator.jl")
 include("postprocess/storage.jl")
 
-
-# Environment variables for configuration
-const ENV_HYDRORES_AS_THERMAL = true
-const ENV_HYDROPUMP_AS_BATTERY = true
-
 # Exported functions and constants
 export get_data, read_system_data, read_ts_data!, preprocess_date!
 export update_system_data_bound!, add_area_df!, add_maps!

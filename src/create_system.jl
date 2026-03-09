@@ -19,7 +19,8 @@ function count_all_generators(nested_dict)
     return sum(length(units) for units in values(nested_dict))
 end
 
-function create_system!(data)
+function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BATTERY=true)
+    # TODO: remove ENV_HYDRORES_AS_THERMAL and ENV_HYDROPUMP_AS_BATTERY
     df_bus = data["bus"]
     df_area = data["area"]
     df_generator = data["generator"]
@@ -419,7 +420,7 @@ function create_system!(data)
     # TODO: add latitude and longitude
     # TODO: inertia
     # TODO: PS should use HydroPumpTurbine
-    # TODOL HydroPumpTurbine to 
+    # TODO: HydroPumpTurbine to 
     #   https://nrel-sienna.github.io/PowerSystems.jl/stable/how_to/create_hydro_datasets/#Head-and-Tail-Reservoirs-for-Pumped-Hydropower-Plants
 
     storages = Dict{Int,Dict{Int,Union{PSY.EnergyReservoirStorage,PSY.HydroPumpTurbine}}}()
