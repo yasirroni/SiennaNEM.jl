@@ -79,3 +79,21 @@ leftjoin!(df_bus, df_bus_latlong_range, on=:id_bus)
 show(df_bus[:, [:id_bus, :name, :latitude, :longitude, :latitude_min, :latitude_max, :longitude_min, :longitude_max]], allrows=true)
 cols = [:id_bus, :name, :latitude, :longitude, :latitude_min, :latitude_max, :longitude_min, :longitude_max]
 CSV.write("examples/result/eda/df_bus_latlong.csv", df_bus[:, cols])
+
+df_line = data["line"]
+unique(df_line[!, [:id_bus_from, :id_bus_to]])
+
+bus_latlong = Dict(row.id_bus => (row.latitude, row.longitude, row.latitude_min, row.latitude_max, row.longitude_min, row.longitude_max) for row in eachrow(df_bus))
+
+df_line.latitude_from  = [bus_latlong[id][1] for id in df_line.id_bus_from]
+df_line.longitude_from = [bus_latlong[id][2] for id in df_line.id_bus_from]
+df_line.latitude_to    = [bus_latlong[id][1] for id in df_line.id_bus_to]
+df_line.longitude_to   = [bus_latlong[id][2] for id in df_line.id_bus_to]
+df_line.latitude_min  = [min(bus_latlong[r.id_bus_from][3], bus_latlong[r.id_bus_to][3]) for r in eachrow(df_line)]
+df_line.latitude_max  = [max(bus_latlong[r.id_bus_from][4], bus_latlong[r.id_bus_to][4]) for r in eachrow(df_line)]
+df_line.longitude_min = [min(bus_latlong[r.id_bus_from][5], bus_latlong[r.id_bus_to][5]) for r in eachrow(df_line)]
+df_line.longitude_max = [max(bus_latlong[r.id_bus_from][6], bus_latlong[r.id_bus_to][6]) for r in eachrow(df_line)]
+unique(df_line[!, [:latitude_from, :longitude_from, :latitude_to, :longitude_to, :latitude_min, :latitude_max, :longitude_min, :longitude_max]])
+
+cols = [:id_lin, :name, :latitude_from, :longitude_from, :latitude_to, :longitude_to, :latitude_min, :latitude_max, :longitude_min, :longitude_max,]
+CSV.write("examples/result/eda/df_line_latlong.csv", df_line[:, cols])
