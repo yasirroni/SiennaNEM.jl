@@ -70,64 +70,64 @@ decision_model = SiennaNEM.run_decision_model(
 )
 results[string(horizon.value) * "_prev"] = OptimizationProblemResults(decision_model)
 
-# 48 Hours, single window, including Day+1
-horizon = Hour(48)
-initial_time = target_day
-sys = SiennaNEM.create_system!(data)
-SiennaNEM.add_ts!(
-    sys, data;
-    horizon=horizon,
-    interval=interval,
-    scenario=scenario,
-)
-decision_model = SiennaNEM.run_decision_model(
-    template_uc, sys;
-    horizon=horizon,
-    initial_time=initial_time,
-    optimizer=solver,
-)
-results[string(horizon.value) * "_next"] = OptimizationProblemResults(decision_model)
+# # 48 Hours, single window, including Day+1
+# horizon = Hour(48)
+# initial_time = target_day
+# sys = SiennaNEM.create_system!(data)
+# SiennaNEM.add_ts!(
+#     sys, data;
+#     horizon=horizon,
+#     interval=interval,
+#     scenario=scenario,
+# )
+# decision_model = SiennaNEM.run_decision_model(
+#     template_uc, sys;
+#     horizon=horizon,
+#     initial_time=initial_time,
+#     optimizer=solver,
+# )
+# results[string(horizon.value) * "_next"] = OptimizationProblemResults(decision_model)
 
-# 72 Hours, single window, including Day-1 and Day+1
-horizon = Hour(72)
-initial_time = target_day - Day(1)
-sys = SiennaNEM.create_system!(data)
-SiennaNEM.add_ts!(
-    sys, data;
-    horizon=horizon,
-    interval=interval,
-    scenario=scenario,
-)
-decision_model = SiennaNEM.run_decision_model(
-    template_uc, sys;
-    horizon=horizon,
-    initial_time=initial_time,
-    optimizer=solver,
-)
-results[string(horizon.value)] = OptimizationProblemResults(decision_model)
+# # 72 Hours, single window, including Day-1 and Day+1
+# horizon = Hour(72)
+# initial_time = target_day - Day(1)
+# sys = SiennaNEM.create_system!(data)
+# SiennaNEM.add_ts!(
+#     sys, data;
+#     horizon=horizon,
+#     interval=interval,
+#     scenario=scenario,
+# )
+# decision_model = SiennaNEM.run_decision_model(
+#     template_uc, sys;
+#     horizon=horizon,
+#     initial_time=initial_time,
+#     optimizer=solver,
+# )
+# results[string(horizon.value)] = OptimizationProblemResults(decision_model)
 
-# 72 Hours, two windows rolling horizon, including Day-1, Day+1, Day+2
-horizon = Hour(72)
-simulation_steps = 2
-problem_name = "UC"
-initial_time = target_day - Day(1)
-sys = SiennaNEM.create_system!(data)
-SiennaNEM.add_ts!(
-    sys, data;
-    horizon=horizon,
-    interval=interval,
-    scenario=scenario,
-)
-simulation = SiennaNEM.run_simulation(
-    template_uc, sys;
-    simulation_folder="examples/result/studies/impact_of_horizon",
-    simulation_name="$(schedule_name)_scenario-$(scenario)",
-    simulation_steps=simulation_steps,
-    decision_model_kwargs=(
-        optimizer=solver,
-        name=problem_name,
-    ),
-)
-results[string(horizon.value) * "_rolling"] = get_decision_problem_results(
-    SimulationResults(simulation), problem_name
-)
+# # 72 Hours, two windows rolling horizon, including Day-1, Day+1, Day+2
+# horizon = Hour(72)
+# simulation_steps = 2
+# problem_name = "UC"
+# initial_time = target_day - Day(1)
+# sys = SiennaNEM.create_system!(data)
+# SiennaNEM.add_ts!(
+#     sys, data;
+#     horizon=horizon,
+#     interval=interval,
+#     scenario=scenario,
+# )
+# simulation = SiennaNEM.run_simulation(
+#     template_uc, sys;
+#     simulation_folder="examples/result/studies/impact_of_horizon",
+#     simulation_name="$(schedule_name)_scenario-$(scenario)",
+#     simulation_steps=simulation_steps,
+#     decision_model_kwargs=(
+#         optimizer=solver,
+#         name=problem_name,
+#     ),
+# )
+# results[string(horizon.value) * "_rolling"] = get_decision_problem_results(
+#     SimulationResults(simulation), problem_name
+# )

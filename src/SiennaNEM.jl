@@ -25,11 +25,6 @@ include("postprocess/demand.jl")
 include("postprocess/generator.jl")
 include("postprocess/storage.jl")
 
-
-# Environment variables for configuration
-const ENV_HYDRORES_AS_THERMAL = true
-const ENV_HYDROPUMP_AS_BATTERY = true
-
 # Exported functions and constants
 export get_data, read_system_data, read_ts_data!, preprocess_date!
 export update_system_data_bound!, add_area_df!, add_maps!
@@ -44,13 +39,13 @@ export groupbyd, groupby_scenario_at_init_day, groupby_scenario_at_day
 export filter_value_from_df, filter_values_from_df
 export add_sts!, add_st!
 export get_specific_scenario_from_df, get_time_slice, get_time_slices_iterator
-export diff_df, show_parameter, sort_res_cols, long_to_wide
+export diff_df, show_parameter, sort_res_cols, substract_df_long, long_to_wide, vcat_dfs
 export get_map_from_df, get_grouped_map_from_df, get_inverse_map
 export get_bus_to_gen, get_gen_to_bus, get_col_to_group, get_group_to_col
 export sum_by_group, get_component_columns
 export get_full_ts_df, add_tsf_data!
 export postprocess_demand_power, postprocess_generator_power, postprocess_storage_power
-export plot_stacked
+export plot_stacked, plot_stacked_long
 
 export build_problem_base_uc
 export run_decision_model, run_simulation

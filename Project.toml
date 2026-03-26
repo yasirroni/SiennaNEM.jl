@@ -1,7 +1,7 @@
 name = "SiennaNEM"
 uuid = "2b2140f2-b9c0-4054-8dfe-2e6bd74cbbbe"
-authors = ["Muhammad Yasirroni <yasirroni@users.noreply.github.com> and contributors"]
 version = "0.0.4"
+authors = ["Muhammad Yasirroni <yasirroni@users.noreply.github.com> and contributors"]
 
 [deps]
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
@@ -20,6 +20,7 @@ PowerSimulations = "e690365d-45e2-57bb-ac84-44ba829e73c4"
 PowerSystems = "bcd98974-b02a-5e2f-9ee0-a103f5c450dd"
 StorageSystemsSimulations = "e2f1a126-19d0-4674-9252-42b2384f8e3c"
 TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
+XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 
 [compat]
 Arrow = "^2.8"
@@ -37,6 +38,7 @@ PowerSimulations = "^0.32"
 PowerSystems = "^5.3"
 StorageSystemsSimulations = "^0.14"
 TimeSeries = "~0.25"
+XLSX = "0.10.4"
 julia = "^1.11"
 
 [extras]

@@ -9,7 +9,9 @@ end
 # replace variable with realized variable
 # !WARNING this is not good as it replace variable with realized_variables
 k = "72_rolling"
-optimization_outputs[k]["variable"] = read_realized_variables(results[k])
+if haskey(results, k)
+    optimization_outputs[k]["variable"] = read_realized_variables(results[k])
+end
 
 # create results_post dictionary
 filter_at_target_day = true
@@ -18,8 +20,10 @@ bus_to_area = get_map_from_df(data["bus"], :id_bus, :id_area)
 results_post = Dict{String,Any}()
 for (k, dfs_res) in optimization_outputs
     # There must be no shortage and surplus energy to ensure the problem feasible
-    row_sums_shortage = sum.(eachrow(select(dfs_res["variable"]["StorageEnergyShortageVariable__EnergyReservoirStorage"])))
-    row_sums_surplus = sum.(eachrow(select(dfs_res["variable"]["StorageEnergySurplusVariable__EnergyReservoirStorage"])))
+    if haskey(dfs_res["variable"], "StorageEnergyShortageVariable__EnergyReservoirStorage")
+        row_sums_shortage = sum.(eachrow(select(dfs_res["variable"]["StorageEnergyShortageVariable__EnergyReservoirStorage"])))
+        row_sums_surplus = sum.(eachrow(select(dfs_res["variable"]["StorageEnergySurplusVariable__EnergyReservoirStorage"])))
+    end
 
     ## Create Aggregated Energy Storage Energy
     # Get df
@@ -59,22 +63,13 @@ for (k, dfs_res) in optimization_outputs
     vrend_param_df = isa(dfs_res["parameter"]["ActivePowerTimeSeriesParameter__RenewableNonDispatch"], AbstractDict) ?
                      vcat_dfs(dfs_res["parameter"]["ActivePowerTimeSeriesParameter__RenewableNonDispatch"]) :
                      dfs_res["parameter"]["ActivePowerTimeSeriesParameter__RenewableNonDispatch"]
+    df_tgen_pg = dfs_res["variable"]["ActivePowerVariable__ThermalStandard"]
 
     if filter_at_target_day
         vred_param_df = filter(r -> Date(r.DateTime) == Date(target_day), vred_param_df)
         vred_var_df = filter(r -> Date(r.DateTime) == Date(target_day), vred_var_df)
-    end
-
-    df_vre_pc = substract_df_long(vred_param_df, vred_var_df)  # curtailment
-    df_bus_vre_pc = sum_by_group(df_vre_pc, name_to_group=gen_n_to_bus, group=:bus)
-    df_area_vre_pc = sum_by_group(df_bus_vre_pc, name=:bus, name_to_group=bus_to_area, group=:area)
-
-    df_tgen_pg = dfs_res["variable"]["ActivePowerVariable__ThermalStandard"]
-    if filter_at_target_day
         df_tgen_pg = filter(r -> Date(r.DateTime) == Date(target_day), df_tgen_pg)
     end
-    df_bus_tgen_pg = sum_by_group(df_tgen_pg, name_to_group=gen_n_to_bus, group=:bus)
-    df_area_tgen_pg = sum_by_group(df_bus_tgen_pg, name=:bus, name_to_group=bus_to_area, group=:area)
 
     # df_gen
     df_gen_pg = vcat_dfs([
@@ -83,10 +78,19 @@ for (k, dfs_res) in optimization_outputs
         vred_var_df,  # RenewableDispatch
     ])
 
+    # bus and area
     gen_to_bus = get_map_from_df(data["generator"], :id_gen, :id_bus)
     gen_n_to_bus = get_col_to_group(unique(df_gen_pg[:, :name]), gen_to_bus)  # use id_gen + id_unit
+
+    df_bus_tgen_pg = sum_by_group(df_tgen_pg, name_to_group=gen_n_to_bus, group=:bus)
+    df_area_tgen_pg = sum_by_group(df_bus_tgen_pg, name=:bus, name_to_group=bus_to_area, group=:area)
     df_bus_gen_pg = sum_by_group(df_gen_pg, name_to_group=gen_n_to_bus, group=:bus)
     df_area_gen_pg = sum_by_group(df_bus_gen_pg, name=:bus, name_to_group=bus_to_area, group=:area)
+
+    # VRE curtailment
+    df_vre_pc = substract_df_long(vred_param_df, vred_var_df)  # curtailment
+    df_bus_vre_pc = sum_by_group(df_vre_pc, name_to_group=gen_n_to_bus, group=:bus)
+    df_area_vre_pc = sum_by_group(df_bus_vre_pc, name=:bus, name_to_group=bus_to_area, group=:area)
 
     # Store
     results_post[k] = Dict(

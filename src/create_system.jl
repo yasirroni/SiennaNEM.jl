@@ -19,7 +19,8 @@ function count_all_generators(nested_dict)
     return sum(length(units) for units in values(nested_dict))
 end
 
-function create_system!(data)
+function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BATTERY=true)
+    # TODO: remove ENV_HYDRORES_AS_THERMAL and ENV_HYDROPUMP_AS_BATTERY
     df_bus = data["bus"]
     df_area = data["area"]
     df_generator = data["generator"]
@@ -419,11 +420,14 @@ function create_system!(data)
     # TODO: add latitude and longitude
     # TODO: inertia
     # TODO: PS should use HydroPumpTurbine
-    # TODOL HydroPumpTurbine to 
+    # TODO: HydroPumpTurbine to 
     #   https://nrel-sienna.github.io/PowerSystems.jl/stable/how_to/create_hydro_datasets/#Head-and-Tail-Reservoirs-for-Pumped-Hydropower-Plants
 
     storages = Dict{Int,Dict{Int,Union{PSY.EnergyReservoirStorage,PSY.HydroPumpTurbine}}}()
     battery_storages = Dict{Int,Dict{Int,PSY.EnergyReservoirStorage}}()
+
+    charge_cost_curve = CostCurve(LinearCurve(1e-6))  # Replace with appropriate values
+    discharge_cost_curve = CostCurve(LinearCurve(1e-6))  # Replace with appropriate values
 
     if !ENV_HYDROPUMP_AS_BATTERY
         hydro_storages = Dict{Int,Dict{Int,PSY.HydroPumpTurbine}}()
@@ -456,6 +460,11 @@ function create_system!(data)
             #   In 2030 scenario, the VRE is very high. A 0 cost for battery
             # operation causes it to charge and discharge irresponsibly.
 
+            # NOTE:
+            # see: 
+            #   https://nrel-sienna.github.io/PowerSystems.jl/stable/model_library/storage_cost/#PowerSystems.StorageCost
+            #   https://nrel-sienna.github.io/PowerSystems.jl/stable/api/valuecurve_options
+
             storage_level_limits_min = row.emin / 100
             storages[id] = Dict{Int,PSY.EnergyReservoirStorage}()
             battery_storages[id] = Dict{Int,PSY.EnergyReservoirStorage}()
@@ -478,7 +487,7 @@ function create_system!(data)
                     output_active_power_limits=(min=0, max=output_active_power_limits_max),
                     efficiency=(in=row.ch_eff, out=row.dch_eff),
                     reactive_power_limits=(min=0, max=0),
-                    operation_cost=StorageCost(nothing),  # only support based MW charge and discharge
+                    operation_cost=StorageCost(charge_cost_curve, discharge_cost_curve, 0.0, 0.0, 0.0, 0.0, 0.0),
                     storage_target=storage_target,
                 )
                 storages[id][i] = storage
