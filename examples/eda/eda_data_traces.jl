@@ -1,17 +1,5 @@
 using Plots, Dates, DataFrames, Arrow
 
-# function get_data(system_data_dir, ts_data_dir; scenario=1, file_format="arrow")
-#     # TODO:
-#     #   Refactor this so that we don't need `scenario` in building the
-#     # system data here.
-#     data = read_system_data(system_data_dir)
-#     read_ts_data!(data, ts_data_dir)
-#     add_tsf_data!(data; scenario=scenario)
-#     update_system_data_bound!(data)
-#     clean_ts_data!(data)
-#     return data
-# end
-
 data_files = Dict(
     "bus" => "Bus",
     "demand" => "Demand",
@@ -78,3 +66,23 @@ println("gen_id=$(gen_id): pmax=$(pmax), vmax=$(vmax), vmax < pmax => ", isless(
 # NOTE: we can see that the trace maximum value (vmax) is much higher than the pmax in
 # the system data, because the system data `pmax` is a dummy value for RE components.
 # This will be "fixed" by SiennaNEM.read_data.update_system_data_bound!
+
+
+# plot demands
+re_ids = Set(df_gen_re[:, :id_gen])
+vre_ts = filter(:id_gen => in(re_ids), data["generator_pmax_ts"])
+
+plts = map(1:3) do scen
+    d = filter(:scenario => ==(scen), data["demand_l_ts"])
+    v = filter(:scenario => ==(scen), vre_ts)
+
+    d_sum = combine(groupby(d, :date), :value => sum => :total)
+    v_sum = combine(groupby(v, :date), :value => sum => :total)
+
+    p = plot(title = "Scenario $scen", xlabel = "Time", ylabel = "Value")
+    plot!(p, d_sum[:, :date], d_sum[:, :total], label = "Demand", color = :steelblue)
+    plot!(p, v_sum[:, :date], v_sum[:, :total], label = "VRE",    color = :orange)
+    p
+end
+
+plot(plts..., layout = (3, 1), size = (900, 900))
