@@ -167,16 +167,59 @@ function add_tsf_data!(
     )
 end
 
+"""
+    update_system_data_bound!(data::Dict{String,Any})
+
+Update the main system DataFrames in `data` with the latest forward-filled time-series bounds.
+
+Arguments
+- `data::Dict{String,Any}`: dictionary produced by `read_data` / `get_data` that must contain:
+  - DataFrames: `"generator"`, `"storage"`, `"line"`
+  - Time-series forward-filled DataFrames (added by `add_tsf_data!`): `"generator_n_tsf"`,
+    `"generator_pmax_tsf"`, `"storage_emax_tsf"`, `"storage_lmax_tsf"`, `"storage_n_tsf"`,
+    `"storage_pmax_tsf"`, `"line_tmax_tsf"`, `"line_tmin_tsf"`. TSF tables are expected to
+    include a `:date` column and columns aligned with component ids.
+
+Behaviour / side effects
+- For each component, reads the last row (most recent timestamp) from the TSF tables
+  (excluding `:date`) and writes those values into the corresponding columns of the
+  in-memory system DataFrames:
+  - Generators:
+    - sets `n` from `generator_n_tsf`.
+    - initializes `pmax` from `generator.pmax`.
+    - overwrites `pmax` for non‑renewable generators (fuel ≠ "Solar" or "Wind")
+      using the last row of `generator_pmax_tsf` (current bound).
+    - for renewable generators (fuel == "Solar" or "Wind"), sets `pmax` to the
+      column-wise maximum of `generator_pmax_tsf` (i.e., the maximum across the
+      time-series for each generator is treated as its capacity).
+  - Storage: sets `emax`, `lmax`, `n`, `pmax` from the corresponding TSF tables.
+  - Lines: sets `tmax`, `tmin` from the corresponding TSF tables.
+- Modifies `data["generator"]`, `data["storage"]`, and `data["line"]` in-place.
+
+Notes / assumptions
+- The function uses the final (most recent) row of each TSF DataFrame for current
+  bounds of non-RE components; for RE `pmax` it uses the maximum across the time-series
+  (column-wise maximum) because the TSF for renewables represents profiles and the
+  peak value is treated as capacity.
+- Column naming or alignment mismatches between TSF tables and the main DataFrames may
+  cause incorrect updates.
+- There are duplicate assignments to `emax`/`lmax` that can be cleaned up; TODO indicates
+  intended future separation of capacity vs. profile updates.
+"""
 function update_system_data_bound!(data::Dict{String,Any})
     # TODO: update to capacity and profile separately if the new data available
     df_generator = data["generator"]
     df_storage = data["storage"]
     df_line = data["line"]
 
+    df_generator[!, :pmax] = collect(df_generator[!, :pmax])  # used to support arrows
+
     ids_gen_nvre = findall(x -> x ∉ ["Solar", "Wind"], data["generator"].fuel)
     df_generator[!, "n"] = Matrix(data["generator_n_tsf"][!, Not(:date)])[end, :]
-    df_generator[!, "pmax"] = Vector(data["generator"].pmax)
     df_generator[ids_gen_nvre, "pmax"] = Matrix(data["generator_pmax_tsf"][!, string.(ids_gen_nvre)])[end, :]
+
+    ids_gen_vre = findall(x -> x ∈ ["Solar", "Wind"], data["generator"].fuel)
+    df_generator[ids_gen_vre, "pmax"] = vec(maximum(Matrix(data["generator_pmax_tsf"][!, string.(ids_gen_vre)]), dims=1))
 
     df_storage[!, "emax"] = Matrix(data["storage_emax_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "lmax"] = Matrix(data["storage_lmax_tsf"][!, Not(:date)])[end, :]
@@ -189,12 +232,12 @@ function update_system_data_bound!(data::Dict{String,Any})
     df_line[!, "tmin"] = Matrix(data["line_tmin_tsf"][!, Not(:date)])[end, :]
 end
 
+"""
+Extend generator DataFrame by creating individual units for each generator.
+Each generator with `n` units will be expanded into `n` rows, each representing
+a single unit with its own `id_unit` and `id_gen_unit`.
+"""
 function extend_generator_data(df::DataFrame)
-    """
-    Extend generator DataFrame by creating individual units for each generator.
-    Each generator with `n` units will be expanded into `n` rows, each representing
-    a single unit with its own `id_unit` and `id_gen_unit`.
-    """
     return vcat([
         let
             n_units = row.n
@@ -249,25 +292,25 @@ function add_maps!(data)
     )
 end
 
+"""
+Get maximum value for each group.
+
+# Arguments
+- `df::DataFrame`: Input DataFrame
+- `group_col::Symbol`: Column to group by (e.g., :id_area, :id_bus)
+- `value_col::Symbol`: Column to aggregate (e.g., :pmax, :capacity)
+
+# Returns
+- `Dict`: Dictionary mapping group IDs to maximum values
+
+# Examples
+```julia
+area_to_max_pmax = get_group_max(data["generator"], :id_area, :pmax)
+bus_to_max_pmax = get_group_max(data["generator"], :id_bus, :capacity)
+area_to_max_emax = get_group_max(data["storage"], :id_area, :emax)
+```
+"""
 function get_group_max(df::DataFrame, group_col::Symbol, value_col::Symbol)
-    """
-    Get maximum value for each group.
-
-    # Arguments
-    - `df::DataFrame`: Input DataFrame
-    - `group_col::Symbol`: Column to group by (e.g., :id_area, :id_bus)
-    - `value_col::Symbol`: Column to aggregate (e.g., :pmax, :capacity)
-
-    # Returns
-    - `Dict`: Dictionary mapping group IDs to maximum values
-
-    # Examples
-    ```julia
-    area_to_max_pmax = get_group_max(data["generator"], :id_area, :pmax)
-    bus_to_max_pmax = get_group_max(data["generator"], :id_bus, :capacity)
-    area_to_max_emax = get_group_max(data["storage"], :id_area, :emax)
-    ```
-    """
     df_agg = combine(groupby(df, group_col), value_col => maximum => :max_value)
     Dict(row[group_col] => row.max_value for row in eachrow(df_agg))
 end

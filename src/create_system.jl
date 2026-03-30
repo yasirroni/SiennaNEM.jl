@@ -301,6 +301,9 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
             end
 
         elseif row.DataType == RenewableDispatch
+            # NOTE:
+            # The `pmax` is dummy as it use the trace maximum value.
+            # See: SiennaNEM.read_data.update_system_data_bound!
             renewable_dispatch_generators[id] = Dict{Int,PSY.RenewableDispatch}()
 
             for i in 1:row.n
@@ -324,6 +327,9 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
             end
 
         elseif row.DataType == RenewableNonDispatch
+            # NOTE:
+            # The `pmax` is dummy as it use the trace maximum value.
+            # See: SiennaNEM.read_data.update_system_data_bound!
             renewable_nondispatch_generators[id] = Dict{Int,PSY.RenewableNonDispatch}()
 
             for i in 1:row.n
