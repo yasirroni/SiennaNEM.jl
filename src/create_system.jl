@@ -19,20 +19,13 @@ function count_all_generators(nested_dict)
     return sum(length(units) for units in values(nested_dict))
 end
 
-function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BATTERY=true)
-    # TODO: remove ENV_HYDRORES_AS_THERMAL and ENV_HYDROPUMP_AS_BATTERY
-    df_bus = data["bus"]
-    df_area = data["area"]
-    df_generator = data["generator"]
-    df_line = data["line"]
-    df_demand = data["demand"]
-    df_storage = data["storage"]
+"""
+    create_areas!(sys, df_area)
 
-    baseMVA = 100
-    sys = PSY.System(baseMVA)
-    set_units_base_system!(sys, "SYSTEM_BASE") # for p.u.
-
-    # Make area dict
+Create PSY.Area components from the area DataFrame and add them to the system.
+Returns a `Dict{Int, PSY.Area}` keyed by `id_area`.
+"""
+function create_areas!(sys, df_area)
     areas = Dict{Int,PSY.Area}()
     for row in eachrow(df_area)
         id = row.id_area
@@ -46,8 +39,16 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
         areas[id] = area
         add_component!(sys, area)
     end
+    return areas
+end
 
-    # Make buses dict
+"""
+    create_buses!(sys, df_bus, areas)
+
+Create PSY.ACBus components from the bus DataFrame and add them to the system.
+Returns a `Dict{Int, PSY.ACBus}` keyed by `id_bus`.
+"""
+function create_buses!(sys, df_bus, areas)
     # TODO: add LoadZone
     buses = Dict{Int,PSY.ACBus}()
     for row in eachrow(df_bus)
@@ -71,8 +72,17 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
         buses[id] = bus
         add_component!(sys, bus)
     end
+    return buses
+end
 
-    # Make lines and arcs
+"""
+    create_lines!(sys, df_line, buses)
+
+Create PSY.Line components from the line DataFrame and add them to the system.
+Skips lines with zero capacity and investment lines.
+Returns a `Dict{Int, PSY.Line}` keyed by `id_lin`.
+"""
+function create_lines!(sys, df_line, buses; baseMVA=100)
     # !WARNING: df_line.name is not unique, thus we use ID instead of name
     # !WARNING: multiple parallel lines have different capacity with same r and x
     lines = Dict{Int,PSY.Line}()
@@ -88,7 +98,7 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
             continue
         end
 
-        # NOTE: innactive lines is properly excluded by PowerModels.
+        # NOTE: inactive lines are properly excluded by PowerModels.
 
         id = row.id_lin
         line = PSY.Line(;
@@ -109,8 +119,31 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
         lines[id] = line
         add_component!(sys, line)
     end
+    return lines
+end
 
-    # Add generators
+"""
+    create_generators!(sys, df_generator, buses; ENV_HYDRORES_AS_THERMAL=true)
+
+Create generator components from the generator DataFrame and add them to the system.
+Handles ThermalStandard, HydroDispatch (as ThermalStandard when ENV_HYDRORES_AS_THERMAL),
+HydroTurbine (as ThermalStandard when ENV_HYDRORES_AS_THERMAL), RenewableDispatch,
+and RenewableNonDispatch.
+
+Returns a named tuple of nested dicts:
+- `generators`: all generators, `Dict{Int, Dict{Int, PSY.Generator}}`
+- `thermal_generators`
+- `renewable_dispatch_generators`
+- `renewable_nondispatch_generators`
+- `hydro_dispatch_generators`
+- `hydro_energyreservoir_generators`
+
+NOTE:
+  1. RenewableDispatch and RenewableNonDispatch is free (cvar == 0).
+  2. ThermalStandard only single linear curve.
+  3. HydroDispatch and HydroTurbine are modelled as ThermalStandard when ENV_HYDRORES_AS_THERMAL=true.
+"""
+function create_generators!(sys, df_generator, buses; ENV_HYDRORES_AS_THERMAL=true)
     #   See:
     #       PowerSystems.jl/src/models/generated for types of generator
     #       PowerSystems.jl/src/definitions.jl for prime_mover_type and ThermalFuels
@@ -154,14 +187,9 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
     # TODO: to improve speed, detect and operate !ENV_HYDRORES_AS_THERMAL outside the loop
     for row in eachrow(df_generator)
         if row.DataType === missing || row.capacity == 0
-            # NOTE:
-            # To print data that is skipped:
-            #
-            #   println(id, ": ", row.DataType, " ", row.capacity)
             continue
         end
 
-        # Initialize nested dictionaries for this generator ID
         id = row.id_gen
         generators[id] = Dict{Int,PSY.Generator}()
 
@@ -302,7 +330,7 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
 
         elseif row.DataType == RenewableDispatch
             # NOTE:
-            # The `pmax` is dummy as it use the trace maximum value.
+            # The `pmax` is dummy as it uses the trace maximum value.
             # See: SiennaNEM.read_data.update_system_data_bound!
             renewable_dispatch_generators[id] = Dict{Int,PSY.RenewableDispatch}()
 
@@ -328,7 +356,7 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
 
         elseif row.DataType == RenewableNonDispatch
             # NOTE:
-            # The `pmax` is dummy as it use the trace maximum value.
+            # The `pmax` is dummy as it uses the trace maximum value.
             # See: SiennaNEM.read_data.update_system_data_bound!
             renewable_nondispatch_generators[id] = Dict{Int,PSY.RenewableNonDispatch}()
 
@@ -352,9 +380,28 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
         end
     end
 
+    return (
+        generators=generators,
+        thermal_generators=thermal_generators,
+        renewable_dispatch_generators=renewable_dispatch_generators,
+        renewable_nondispatch_generators=renewable_nondispatch_generators,
+        hydro_dispatch_generators=hydro_dispatch_generators,
+        hydro_energyreservoir_generators=hydro_energyreservoir_generators,
+    )
+end
+
+"""
+    create_loads!(sys, df_demand, buses; baseMVA=100)
+
+Create PowerLoad components from the demand DataFrame and add them to the system.
+Skips controllable loads.
+Returns a `Dict{Int, PowerLoad}` keyed by `id_dem`.
+"""
+function create_loads!(sys, df_demand, buses; baseMVA=100)
     # TODO:
-    #   Check the behavior of PowerLoad and StandardLoad as StandardLoad is used for
+    #   Check the behaviour of PowerLoad and StandardLoad as StandardLoad is used for
     # dynamic simulation.
+    #   Check ShiftablePowerLoad and PowerLoadForwardShift
     demands = Dict{Int,PowerLoad}()
     for row in eachrow(df_demand)
         if row.controllable == 1
@@ -374,8 +421,24 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
         demands[id] = demand
         add_component!(sys, demand)
     end
+    return demands
+end
 
-    # Add battery
+"""
+    create_storages!(sys, df_storage, buses; ENV_HYDROPUMP_AS_BATTERY=true)
+
+Create storage components from the storage DataFrame and add them to the system.
+Handles EnergyReservoirStorage and HydroPumpTurbine (modelled as EnergyReservoirStorage
+when ENV_HYDROPUMP_AS_BATTERY=true). Skips rows with n==0 (investment storage).
+
+Returns a named tuple of nested dicts:
+- `storages`: all storages, `Dict{Int, Dict{Int, Union{PSY.EnergyReservoirStorage, PSY.HydroPumpTurbine}}}`
+- `battery_storages`
+- `hydro_storages`
+
+"""
+function create_storages!(sys, df_storage, buses; ENV_HYDROPUMP_AS_BATTERY=true)
+
     # I don't know what is the best for battery modelling, including dynamics.
     # 
     #   https://nrel-sienna.github.io/PowerSystems.jl/stable/model_library/generated_EnergyReservoirStorage/
@@ -500,6 +563,7 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
                 battery_storages[id][i] = storage
                 add_component!(sys, storage)
             end
+
         elseif row.DataType == HydroPumpTurbine
             # TODO:
             #   Is this correct?
@@ -579,14 +643,43 @@ function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BAT
         end
     end
 
-    # NOTE: BUG in PowerSystems.jl:
-    #   Using `set_units_base_system!(sys, "NATURAL_UNITS")` before data creation
-    # cause warning. This warning is fixed in latest PowerSystems.jl (that is
-    # currently) not yet supported for PowerSimulations.jl
-    # 
-    # See: https://github.com/NREL-Sienna/PowerSystems.jl/issues/1418
-    # set_units_base_system!(sys, "NATURAL_UNITS")  # for MW/MVA
-    # set_units_base_system!(sys, "SYSTEM_BASE")  # for p.u.
+    return (
+        storages=storages,
+        battery_storages=battery_storages,
+        hydro_storages=hydro_storages,
+    )
+end
+
+function create_system!(data; ENV_HYDRORES_AS_THERMAL=true, ENV_HYDROPUMP_AS_BATTERY=true)
+    # TODO: remove ENV_HYDRORES_AS_THERMAL and ENV_HYDROPUMP_AS_BATTERY
+    df_bus = data["bus"]
+    df_area = data["area"]
+    df_generator = data["generator"]
+    df_line = data["line"]
+    df_demand = data["demand"]
+    df_storage = data["storage"]
+
+    baseMVA = 100
+    sys = PSY.System(baseMVA)
+    set_units_base_system!(sys, "SYSTEM_BASE") # for p.u.
+
+    areas = create_areas!(sys, df_area)
+    buses = create_buses!(sys, df_bus, areas)
+    lines = create_lines!(sys, df_line, buses; baseMVA=baseMVA)
+    demands = create_loads!(sys, df_demand, buses; baseMVA=baseMVA)
+    gen_result = create_generators!(sys, df_generator, buses; ENV_HYDRORES_AS_THERMAL=ENV_HYDRORES_AS_THERMAL)
+    storage_result = create_storages!(sys, df_storage, buses; ENV_HYDROPUMP_AS_BATTERY=ENV_HYDROPUMP_AS_BATTERY)
+
+    generators = gen_result.generators
+    thermal_generators = gen_result.thermal_generators
+    renewable_dispatch_generators = gen_result.renewable_dispatch_generators
+    renewable_nondispatch_generators = gen_result.renewable_nondispatch_generators
+    hydro_dispatch_generators = gen_result.hydro_dispatch_generators
+    hydro_energyreservoir_generators = gen_result.hydro_energyreservoir_generators
+
+    storages = storage_result.storages
+    battery_storages = storage_result.battery_storages
+    hydro_storages = storage_result.hydro_storages
 
     # get and set slack_bus
     df_thermalgenerators_active = filter(

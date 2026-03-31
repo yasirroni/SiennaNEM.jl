@@ -81,7 +81,7 @@ plts = map(1:3) do scen
 
     p = plot(title = "Scenario $scen", xlabel = "Time", ylabel = "Value")
     plot!(p, d_sum[:, :date], d_sum[:, :total], label = "Demand", color = :steelblue)
-    plot!(p, v_sum[:, :date], v_sum[:, :total], label = "VRE",    color = :orange)
+    plot!(p, v_sum[:, :date], v_sum[:, :total], label = "VRE", color = :orange)
     p
 end
 
