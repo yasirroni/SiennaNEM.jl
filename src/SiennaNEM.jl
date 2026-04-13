@@ -52,4 +52,8 @@ export run_decision_model, run_simulation
 
 export export_optimization_results_to_csv, get_results_dataframes
 
+function __init__()
+    _populate_constants!()
+end
+
 end

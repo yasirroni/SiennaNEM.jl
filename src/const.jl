@@ -37,8 +37,15 @@
 
 # https://nrel-sienna.github.io/PowerSystems.jl/stable/api/enumerated_types/
 
-if !isdefined(Main, :tech_to_primemover)
-    const tech_to_primemover = Dict(
+# Define once (const binding), then repopulate by mutation for Revise friendliness.
+const tech_to_primemover = Dict{String,PrimeMovers}()
+const tech_to_datatype = Dict{String,Any}()
+const tech_to_fuel = Dict{String,ThermalFuels}()
+const area_to_name = OrderedDict{Int,String}()
+const optimization_result_handlers = Vector{Tuple{String,Function}}()
+
+function _populate_constants!()
+    merge!(empty!(tech_to_primemover), Dict(
         "Black Coal NSW" => PrimeMovers.ST,
         "Black Coal QLD" => PrimeMovers.ST,
         "Brown Coal VIC" => PrimeMovers.ST,
@@ -54,12 +61,9 @@ if !isdefined(Main, :tech_to_primemover)
         "Wind" => PrimeMovers.WT,
         "BESS" => PrimeMovers.BA,
         "PS" => PrimeMovers.HY,
-    )
-end
-
-# TODO: use tech instead of type
-if !isdefined(Main, :tech_to_datatype)
-    const tech_to_datatype = Dict(
+    ))
+    # TODO: use tech instead of type
+    merge!(empty!(tech_to_datatype), Dict(
         "Black Coal NSW" => ThermalStandard,
         "Black Coal QLD" => ThermalStandard,
         "Brown Coal VIC" => ThermalStandard,
@@ -75,10 +79,8 @@ if !isdefined(Main, :tech_to_datatype)
         "Wind" => RenewableDispatch,
         "BESS" => EnergyReservoirStorage,
         "PS" => HydroPumpTurbine,
-    )
-end
-if !isdefined(Main, :tech_to_fuel)
-    const tech_to_fuel = Dict(
+    ))
+    merge!(empty!(tech_to_fuel), Dict(
         "Black Coal NSW" => ThermalFuels.COAL,
         "Black Coal QLD" => ThermalFuels.COAL,
         "Brown Coal VIC" => ThermalFuels.COAL,
@@ -87,21 +89,15 @@ if !isdefined(Main, :tech_to_fuel)
         "Hydrogen-based gas turbines" => ThermalFuels.OTHER,
         "OCGT" => ThermalFuels.NATURAL_GAS,
         "CCGT" => ThermalFuels.NATURAL_GAS,
-    )
-end
-
-if !isdefined(Main, :area_to_name)
-    const area_to_name = OrderedDict(
+    ))
+    merge!(empty!(area_to_name), OrderedDict(
         1 => "QLD",
         2 => "NSW",
         3 => "VIC",
         4 => "TAS",
         5 => "SA",
-    )
-end
-
-if !isdefined(Main, :optimization_result_handlers)
-    const optimization_result_handlers = [
+    ))
+    append!(empty!(optimization_result_handlers), [
         ("expressions", read_expressions),
         ("aux_variables", read_aux_variables),
         ("parameters", read_parameters),
@@ -112,5 +108,6 @@ if !isdefined(Main, :optimization_result_handlers)
         ("realized_parameters", read_realized_parameters),
         ("realized_variables", read_realized_variables),
         ("realized_duals", read_realized_duals),
-    ]
+    ])
+    return nothing
 end
