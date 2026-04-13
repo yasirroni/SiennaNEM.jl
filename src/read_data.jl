@@ -97,8 +97,13 @@ function add_datatype_col!(df)
     transform!(df, :tech => ByRow(t -> tech_to_datatype[t]) => :DataType)
 end
 
-function add_id_area_col!(df, bus_to_area)
-    transform!(df, :id_bus => ByRow(b -> bus_to_area[b]) => :id_area)
+function add_id_area_col!(
+    df,
+    bus_to_area::AbstractDict;
+    bus_col::Symbol = :id_bus,
+    area_col::Symbol = :id_area,
+)
+    transform!(df, bus_col => ByRow(b -> bus_to_area[b]) => area_col)
 end
 
 function add_tsf_data!(

@@ -42,6 +42,10 @@ const tech_to_primemover = Dict{String,PrimeMovers}()
 const tech_to_datatype = Dict{String,Any}()
 const tech_to_fuel = Dict{String,ThermalFuels}()
 const area_to_name = OrderedDict{Int,String}()
+const area_to_tref_summer = OrderedDict{Int,Float64}()
+const area_to_tref_winter = OrderedDict{Int,Float64}()
+const line_to_tmin_summer = OrderedDict{Int,Float64}()
+const line_to_tmax_summer = OrderedDict{Int,Float64}()
 const optimization_result_handlers = Vector{Tuple{String,Function}}()
 
 function _populate_constants!()
@@ -96,6 +100,52 @@ function _populate_constants!()
         3 => "VIC",
         4 => "TAS",
         5 => "SA",
+    ))
+    merge!(empty!(area_to_tref_summer), OrderedDict(
+        1 => 32.0,
+        2 => 32.0,
+        3 => 32.0,
+        4 => 35.0,
+        5 => 7.7,
+    ))
+    merge!(empty!(area_to_tref_winter), OrderedDict(
+        1 => 15.0,
+        2 => 9.0,
+        3 => 8.0,
+        4 => 11.0,
+        5 => 1.2,
+    ))
+    merge!(empty!(line_to_tmin_summer), OrderedDict(
+        1 => 1200.0,
+        2 => 750.0,
+        3 => 2100.0,
+        4 => 1165.0,
+        5 => 150.0,
+        6 => 930.0,
+        7 => 4490.0,
+        8 => 2540.0,
+        9 => 2320.0,
+        10 => 400.0,
+        11 => 650.0,
+        12 => 650.0,
+        13 => 200.0,
+        14 => 478.0,
+    ))
+    merge!(empty!(line_to_tmax_summer), OrderedDict(
+        1 => 1200.0,
+        2 => 700.0,
+        3 => 1100.0,
+        4 => 745.0,
+        5 => 50.0,
+        6 => 910.0,
+        7 => 4490.0,
+        8 => 2540.0,
+        9 => 2700.0,
+        10 => 1000.0,
+        11 => 650.0,
+        12 => 650.0,
+        13 => 220.0,
+        14 => 594.0,
     ))
     append!(empty!(optimization_result_handlers), [
         ("expressions", read_expressions),

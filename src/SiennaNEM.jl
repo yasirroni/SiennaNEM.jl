@@ -33,7 +33,8 @@ export extend_generator_data, get_group_max
 export clean_ts_data!
 export create_system!, add_ts!
 export tech_to_primemover, tech_to_datatype, tech_to_fuel
-export area_to_name
+export area_to_name, area_to_tref_summer, area_to_tref_winter
+export line_to_tmin_summer, line_to_tmax_summer
 export get_flat_generators, get_generator_units, count_all_generators
 export groupbyd, groupby_scenario_at_init_day, groupby_scenario_at_day
 export filter_value_from_df, filter_values_from_df
