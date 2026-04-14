@@ -196,6 +196,7 @@ transform!(
         :tm_to_rv,
 )
 
+# tm calculation
 # tm_default = 250.0  # default for high-temperature conductors
 # tm_default = 100.0  # default for high, standard-temperature conductors
 tm_default = 90.0  # default for high, standard-temperature conductors
@@ -209,12 +210,15 @@ transform!(
         end) =>
         :tm,
 )
-
 # clip tm to <= tm_default
 transform!(
     data["line"],
     :tm => ByRow(tm -> (isfinite(tm) ? min(tm, tm_default) : tm)) => :tm,
 )
+# HVDC Basslink (undersea cable) is not impacted by ambient temperature
+data["line"][data["line"].id_lin .== 14, :tm] .= NaN
+# HVDC Murraylink is specified by the operator to have a 46°C thermal limit
+data["line"][data["line"].id_lin .== 13, :tm] .= 46
 
 show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
     :id_lin, :id_bus_from, :id_bus_to, :tmax, :tmax_summer, :tref_summer_from, :tref_winter_from, :tref_summer_to, :tref_winter_to, :tm_from_fw, :tm_to_fw, :tm_from_rv, :tm_to_rv, :tm
@@ -270,15 +274,15 @@ transform!(
 )
 
 # CF at ambient using tm and tref_summer_line
-t_ambient_eval = 40.0
+t_ambient_eval = 42.0
 transform!(
     data["line"],
     [:tm, :tref_summer_line] =>
         ByRow((tm, tr) -> get_branch_thermal_correction_factor(t_ambient_eval, tm, tr)) =>
-        :cf_at_40C,
+        :cf_at_42C,
 )
 show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-    :id_lin, :id_bus_from, :id_bus_to, :tmax_summer, :tref_summer_from, :tref_summer_to, :tref_summer_line, :tm, :cf_at_40C,
+    :id_lin, :id_bus_from, :id_bus_to, :tmax_summer, :tref_summer_from, :tref_summer_to, :tref_summer_line, :tm, :cf_at_42C,
 ]], allrows=true, allcols=true)
 
 """
@@ -311,13 +315,13 @@ function get_branch_thermal_correction_factor_slope(
     return -1.0 / (2.0 * sqrt(tm - tr) * sqrt(tm - ta)) * scale
 end
 
-# Example: compute slope at 40°C ambient, using tm and the chosen line tref
+# Example: compute slope at 42°C ambient, using tm and the chosen line tref
 transform!(
     data["line"],
     [:tm, :tref_summer_line] =>
         ByRow((tm, tr) -> get_branch_thermal_correction_factor_slope(t_ambient_eval, tm, tr)) =>
-        :dcf_dt_pct_per_C_at_40C,
+        :dcf_dt_pct_per_C_at_42C,
 )
 show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-    :id_lin, :id_bus_from, :id_bus_to, :tmax_summer, :tref_summer_from, :tref_summer_to, :tref_summer_line, :tm, :dcf_dt_pct_per_C_at_40C,
+    :id_lin, :alias, :id_bus_from, :id_bus_to, :tmax_summer, :tref_summer_from, :tref_summer_to, :tref_summer_line, :tm, :cf_at_42C, :dcf_dt_pct_per_C_at_42C,
 ]], allrows=true, allcols=true)
