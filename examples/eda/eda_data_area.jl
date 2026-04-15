@@ -422,7 +422,7 @@ transform!(
 )
 
 show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin
+        :id_lin, :alias, :area_from, :area_to, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin
     ]],
     allrows=true, allcols=true
 )
@@ -665,3 +665,105 @@ show(
     ]],
     allrows=true, allcols=true
 )
+
+"""
+    compute_line_thermal_capacity(ta_df, line_df) -> DataFrame
+
+Compute derated `tmax` and `tmin` for each row in `ta_df` by joining with `line_df`
+on `:id_lin` and applying the appropriate thermal derating model per `:tech`.
+
+Input `ta_df` columns: `:id`, `:id_lin`, `:scenario`, `:date`, `:value` (ambient °C)
+Output: same format with two additional columns `:tmax_derated` and `:tmin_derated`,
+        replacing `:value`.
+"""
+function compute_line_thermal_capacity(ta_df::DataFrame, line_df::DataFrame)
+    # columns from line_df we need
+    line_cols = [
+        :id_lin, :tech,
+        :tref_winter, :tref_summer, :tref_peak_demand,
+        :tmax, :tmax_summer, :tmax_peak_demand,
+        :tmin, :tmin_summer, :tmin_peak_demand,
+        :tm1_tmax, :tm2_tmax, :tm3_tmax,
+        :tm1_tmin, :tm2_tmin, :tm3_tmin,
+    ]
+
+    df = leftjoin(ta_df, select(line_df, line_cols); on=:id_lin)
+
+    transform!(
+        df,
+        [:tech,
+         :tref_winter, :tref_summer, :tref_peak_demand,
+         :tmax, :tmax_summer, :tmax_peak_demand,
+         :tm1_tmax, :tm2_tmax, :tm3_tmax,
+         :value] =>
+            ByRow((tech, t1, t2, t3, p1, p2, p3, tm1, tm2, tm3, ta) -> begin
+                if tech == "ac_oh"
+                    get_branch_thermal_capacity(ta, t1, t2, t3, p1, p2, p3, tm1, tm2, tm3)
+                elseif tech == "dc_oh"
+                    get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
+                else  # dc_ss
+                    Float64(p1)
+                end
+            end) => :tmax_derated,
+    )
+
+    transform!(
+        df,
+        [:tech,
+         :tref_winter, :tref_summer, :tref_peak_demand,
+         :tmin, :tmin_summer, :tmin_peak_demand,
+         :tm1_tmin, :tm2_tmin, :tm3_tmin,
+         :value] =>
+            ByRow((tech, t1, t2, t3, p1, p2, p3, tm1, tm2, tm3, ta) -> begin
+                if tech == "ac_oh"
+                    get_branch_thermal_capacity(ta, t1, t2, t3, p1, p2, p3, tm1, tm2, tm3)
+                elseif tech == "dc_oh"
+                    get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
+                else  # dc_ss
+                    Float64(p1)
+                end
+            end) => :tmin_derated,
+    )
+
+    return select(df, :id, :id_lin, :scenario, :date, :tmax_derated, :tmin_derated)
+end
+
+ta_df = DataFrame(
+    id       = 1:8,
+    id_lin   = [15, 15, 15, 15, 15, 15, 1, 1],
+    scenario = [1, 2, 3, 1, 2, 3, 1, 1],
+    date     = DateTime.([
+        "2024-07-01", "2024-07-01", "2024-07-01",
+        "2026-07-01", "2026-07-01", "2026-07-01",
+        "2030-01-01", "2030-06-01",
+    ]),
+    value    = [15.0, 15.0, 15.0, 40.0, 40.0, 40.0, 40.0, 40.0],
+)
+ta_df
+# 8×5 DataFrame
+#  Row │ id     id_lin  scenario  date                 value   
+#      │ Int64  Int64   Int64     DateTime             Float64 
+# ─────┼───────────────────────────────────────────────────────
+#    1 │     1      15         1  2024-07-01T00:00:00     15.0
+#    2 │     2      15         2  2024-07-01T00:00:00     15.0
+#    3 │     3      15         3  2024-07-01T00:00:00     15.0
+#    4 │     4      15         1  2026-07-01T00:00:00     40.0
+#    5 │     5      15         2  2026-07-01T00:00:00     40.0
+#    6 │     6      15         3  2026-07-01T00:00:00     40.0
+#    7 │     7       1         1  2030-01-01T00:00:00     40.0
+#    8 │     8       1         1  2030-06-01T00:00:00     40.0
+
+capacity_df = compute_line_thermal_capacity(ta_df, data["line"])
+capacity_df
+# 8×6 DataFrame
+#  Row │ id     id_lin  scenario  date                 tmax_derated  tmin_derated 
+#      │ Int64  Int64   Int64     DateTime             Float64       Float64      
+# ─────┼──────────────────────────────────────────────────────────────────────────
+#    1 │     7       1         1  2030-01-01T00:00:00       1165.54       1165.54
+#    2 │     8       1         1  2030-06-01T00:00:00       1165.54       1165.54
+#    3 │     1      15         1  2024-07-01T00:00:00        800.0         800.0
+#    4 │     2      15         2  2024-07-01T00:00:00        800.0         800.0
+#    5 │     3      15         3  2024-07-01T00:00:00        800.0         800.0
+#    6 │     4      15         1  2026-07-01T00:00:00        800.0         800.0
+#    7 │     5      15         2  2026-07-01T00:00:00        800.0         800.0
+#    8 │     6      15         3  2026-07-01T00:00:00        800.0         800.0
