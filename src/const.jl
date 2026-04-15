@@ -51,6 +51,7 @@ const line_to_tmin_summer = OrderedDict{Int,Float64}()
 const line_to_tmax_summer = OrderedDict{Int,Float64}()
 const line_to_tech = OrderedDict{Int,String}()
 const optimization_result_handlers = Vector{Tuple{String,Function}}()
+const dc_oh_constant = Dict{String,Float64}()
 
 function _populate_constants!()
     merge!(empty!(tech_to_primemover), Dict(
@@ -195,6 +196,10 @@ function _populate_constants!()
         5 => "dc_oh",  # "Terranora", dc over head cable 
         14 => "dc_ss",  # "Basslink", dc sub sea cable
         13 => "dc_oh",  # "Murraylink", dc over head cable
+    ))
+    merge!(empty!(dc_oh_constant), Dict(
+        "max_no_derating_temp" => 0.0,  # °C, no reduction below this
+        "derating_rate" => 0.0,  # 12.5% reduction per °C above base
     ))
     append!(empty!(optimization_result_handlers), [
         ("expressions", read_expressions),

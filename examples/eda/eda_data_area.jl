@@ -561,9 +561,6 @@ function get_branch_thermal_capacity(
     end
 end
 
-const DC_OH_BASE_TEMP = 38.0       # °C, no reduction below this
-const DC_OH_RATE     = 0.125       # 12.5% reduction per °C above base
-
 """
     get_branch_thermal_capacity_dc_oh(ta, tm, p) -> Float64
 
@@ -576,29 +573,29 @@ Compute derated capacity for DC overhead (`dc_oh`) lines.
 function get_branch_thermal_capacity_dc_oh(ta::Real, tm::Real, p::Real)
     ta = Float64(ta)
     tm = Float64(tm)
-    p  = Float64(p)
+    p = Float64(p)
 
-    if ta <= DC_OH_BASE_TEMP
+    if ta <= dc_oh_constant["max_no_derating_temp"]
         return p
     elseif ta <= tm
-        return p * (1.0 - DC_OH_RATE * (ta - DC_OH_BASE_TEMP))
+        return p * (1.0 - dc_oh_constant["derating_rate"] * (ta - dc_oh_constant["max_no_derating_temp"]))
     else
         return 0.0
     end
 end
 
 # ambient temperature for derating (°C)
-ta = 25.0  # for testing mild temperature
+# ta = 25.0  # for testing mild temperature
 # ta = 36.0  # for testing summer temperature
 # ta = 42.0  # for testing high temperature
-# ta = 47.0  # for testing extreme temperature
+ta = 47.0  # for testing extreme temperature
 
 transform!(
     data["line"],
     [:tech,
-     :tref_winter, :tref_summer, :tref_peak_demand,
-     :tmax, :tmax_summer, :tmax_peak_demand,
-     :tm1_tmax, :tm2_tmax, :tm3_tmax] =>
+        :tref_winter, :tref_summer, :tref_peak_demand,
+        :tmax, :tmax_summer, :tmax_peak_demand,
+        :tm1_tmax, :tm2_tmax, :tm3_tmax] =>
         ByRow((tech, args...) -> begin
             if tech == "ac_oh"
                 get_branch_thermal_capacity(ta, args...)
@@ -614,9 +611,9 @@ transform!(
 transform!(
     data["line"],
     [:tech,
-     :tref_winter, :tref_summer, :tref_peak_demand,
-     :tmin, :tmin_summer, :tmin_peak_demand,
-     :tm1_tmin, :tm2_tmin, :tm3_tmin] =>
+        :tref_winter, :tref_summer, :tref_peak_demand,
+        :tmin, :tmin_summer, :tmin_peak_demand,
+        :tm1_tmin, :tm2_tmin, :tm3_tmin] =>
         ByRow((tech, args...) -> begin
             if tech == "ac_oh"
                 get_branch_thermal_capacity(ta, args...)
