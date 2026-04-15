@@ -421,7 +421,13 @@ transform!(
         ByRow((a, b) -> min(Float64(a), Float64(b))) => :tm3_tmin,
 )
 
-# tm for HVDC lines:
+show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
+        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin
+    ]],
+    allrows=true, allcols=true
+)
+
+# fix tm for HVDC lines:
 cols_tm = [:tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin]
 cols_tm_tmax = [:tm1_tmax, :tm2_tmax, :tm3_tmax]
 # HVDC Terranora should be limited to:
@@ -462,30 +468,31 @@ transform!(
         ByRow((a, b) -> min(Float64(a), Float64(b))) => :tref_winter,
 )
 
-
 show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
         :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin
-    ]], allrows=true, allcols=true)
+    ]],
+    allrows=true, allcols=true
+)
 
-#  15×13 DataFrame
+# 15×13 DataFrame
 #  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_tmax  tm2_tmax  tm3_tmax  tm1_tmin   tm2_tmin  tm3_tmin 
 #      │ Int64   String                 String     String   Float64           Float64      Float64      Float64   Float64   Float64   Float64    Float64   Float64  
 # ─────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-#    1 │      1  CQ->NQ                 QLD        QLD                  37.0         32.0         15.0   79.0769  NaN        90.0       79.0769     NaN        90.0
-#    2 │      2  CQ->GG                 QLD        QLD                  37.0         32.0         15.0   45.6     NaN        90.0       46.7683     NaN        90.0
-#    3 │      3  SQ->CQ                 QLD        QLD                  37.0         32.0         15.0  NaN       NaN        90.0      NaN          NaN        90.0
-#    4 │      4  QNI North              NSW        QLD                  37.0         32.0          9.0  NaN        64.3441   64.3441  2008.26       NaN        90.0
-#    5 │      5  Terranora              NSW        QLD                  37.0         32.0          9.0   37.0      37.0      37.0       46.0         46.0      46.0
-#    6 │      6  QNI South              NSW        NSW                  42.0         32.0          9.0  NaN       NaN        90.0      139.108      NaN        90.0
-#    7 │      7  CNSW->SNW North        NSW        NSW                  42.0         32.0          9.0  241.546   NaN        90.0      241.546      NaN        90.0
-#    8 │      8  CNSW->SNW South        NSW        NSW                  42.0         32.0          9.0  188.725   NaN        90.0      188.725      NaN        90.0
-#    9 │      9  VNI North              NSW        NSW                  42.0         32.0          9.0  150.704   NaN        90.0      125.381      NaN        90.0
-#   10 │     10  VNI South              VIC        NSW                  41.0         32.0          8.0  NaN        69.0218   69.0218   NaN          NaN        90.0
-#   11 │     11  Heywood                VIC        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0
-#   12 │     12  SESA->CSA              SA         SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0
-#   13 │     13  Murraylink             VIC        SA                    7.7          7.7          1.2   46.0      46.0      46.0       46.0         46.0      46.0
-#   14 │     14  Basslink               TAS        VIC                  41.0         32.0          8.0  NaN       NaN       NaN        NaN          NaN       NaN
-#   15 │     15  Project EnergyConnect  NSW        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0
+#    1 │      1  CQ->NQ                 QLD        QLD                  37.0         32.0         15.0   79.0769  NaN        90.0       79.0769  NaN        90.0
+#    2 │      2  CQ->GG                 QLD        QLD                  37.0         32.0         15.0   45.6     NaN        90.0       46.7683  NaN        90.0
+#    3 │      3  SQ->CQ                 QLD        QLD                  37.0         32.0         15.0  NaN       NaN        90.0      NaN       NaN        90.0
+#    4 │      4  QNI North              NSW        QLD                  37.0         32.0          9.0  NaN        64.3441   64.3441  2008.26    NaN        90.0
+#    5 │      5  Terranora              NSW        QLD                  37.0         32.0          9.0  NaN        37.0      37.0       53.8571   52.0893   52.0893
+#    6 │      6  QNI South              NSW        NSW                  42.0         32.0          9.0  NaN       NaN        90.0      139.108   NaN        90.0
+#    7 │      7  CNSW->SNW North        NSW        NSW                  42.0         32.0          9.0  241.546   NaN        90.0      241.546   NaN        90.0
+#    8 │      8  CNSW->SNW South        NSW        NSW                  42.0         32.0          9.0  188.725   NaN        90.0      188.725   NaN        90.0
+#    9 │      9  VNI North              NSW        NSW                  42.0         32.0          9.0  150.704   NaN        90.0      125.381   NaN        90.0
+#   10 │     10  VNI South              VIC        NSW                  41.0         32.0          8.0  NaN        69.0218   69.0218   NaN       NaN        90.0
+#   11 │     11  Heywood                VIC        SA                   41.0         32.0          8.0  NaN       NaN        90.0      NaN       NaN        90.0
+#   12 │     12  SESA->CSA              SA         SA                   43.0         35.0         11.0  NaN       NaN        90.0      NaN       NaN        90.0
+#   13 │     13  Murraylink             VIC        SA                   41.0         32.0          8.0  NaN       NaN        90.0      NaN        44.0      44.0
+#   14 │     14  Basslink               TAS        VIC                   7.7          7.7          1.2  NaN       NaN        90.0      NaN       NaN        90.0
+#   15 │     15  Project EnergyConnect  NSW        SA                   42.0         32.0          9.0  NaN       NaN        90.0      NaN       NaN        90.0
 
 """
     get_branch_thermal_capacity(
@@ -554,33 +561,80 @@ function get_branch_thermal_capacity(
     end
 end
 
-ta = 47.0  # ambient temperature for derating (°C)
+const DC_OH_BASE_TEMP = 38.0       # °C, no reduction below this
+const DC_OH_RATE     = 0.125       # 12.5% reduction per °C above base
 
-# Forward flow (tmax)
+"""
+    get_branch_thermal_capacity_dc_oh(ta, tm, p) -> Float64
+
+Compute derated capacity for DC overhead (`dc_oh`) lines.
+
+- `ta ≤ DC_OH_BASE_TEMP`          : return `p` (no reduction)
+- `DC_OH_BASE_TEMP < ta ≤ tm`     : return `p * (1 - DC_OH_RATE * (ta - DC_OH_BASE_TEMP))`
+- `ta > tm`                        : return `0.0`
+"""
+function get_branch_thermal_capacity_dc_oh(ta::Real, tm::Real, p::Real)
+    ta = Float64(ta)
+    tm = Float64(tm)
+    p  = Float64(p)
+
+    if ta <= DC_OH_BASE_TEMP
+        return p
+    elseif ta <= tm
+        return p * (1.0 - DC_OH_RATE * (ta - DC_OH_BASE_TEMP))
+    else
+        return 0.0
+    end
+end
+
+# ambient temperature for derating (°C)
+ta = 25.0  # for testing mild temperature
+# ta = 36.0  # for testing summer temperature
+# ta = 42.0  # for testing high temperature
+# ta = 47.0  # for testing extreme temperature
+
 transform!(
     data["line"],
-    [:tref_winter, :tref_summer, :tref_peak_demand,
-        :tmax, :tmax_summer, :tmax_peak_demand,
-        :tm1_tmax, :tm2_tmax, :tm3_tmax] =>
-        ByRow((args...) -> get_branch_thermal_capacity(ta, args...)) => :tmax_derated,
+    [:tech,
+     :tref_winter, :tref_summer, :tref_peak_demand,
+     :tmax, :tmax_summer, :tmax_peak_demand,
+     :tm1_tmax, :tm2_tmax, :tm3_tmax] =>
+        ByRow((tech, args...) -> begin
+            if tech == "ac_oh"
+                get_branch_thermal_capacity(ta, args...)
+            elseif tech == "dc_oh"
+                # use tm3 as the conductor limit, p1 (tmax) as base capacity
+                t1, t2, t3, p1, p2, p3, tm1, tm2, tm3 = args
+                get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
+            else  # dc_ss
+                Float64(args[4])  # p1 = tmax, no derating
+            end
+        end) => :tmax_derated,
 )
-
-# Reverse flow (tmin)
 transform!(
     data["line"],
-    [:tref_winter, :tref_summer, :tref_peak_demand,
-        :tmin, :tmin_summer, :tmin_peak_demand,
-        :tm1_tmin, :tm2_tmin, :tm3_tmin] =>
-        ByRow((args...) -> get_branch_thermal_capacity(ta, args...)) => :tmin_derated,
+    [:tech,
+     :tref_winter, :tref_summer, :tref_peak_demand,
+     :tmin, :tmin_summer, :tmin_peak_demand,
+     :tm1_tmin, :tm2_tmin, :tm3_tmin] =>
+        ByRow((tech, args...) -> begin
+            if tech == "ac_oh"
+                get_branch_thermal_capacity(ta, args...)
+            elseif tech == "dc_oh"
+                t1, t2, t3, p1, p2, p3, tm1, tm2, tm3 = args
+                get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
+            else  # dc_ss
+                Float64(args[4])  # p1 = tmin, no derating
+            end
+        end) => :tmin_derated,
 )
 
-show(
-    filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin, :tmax, :tmin, :tmax_derated, :tmin_derated
-    ]],
-    allrows=true, allcols=true
-)
-
+# show(
+#     filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
+#         :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin, :tmax, :tmax_derated, :tmin, :tmin_derated
+#     ]],
+#     allrows=true, allcols=true
+# )
 # 15×17 DataFrame
 #  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_tmax  tm2_tmax  tm3_tmax  tm1_tmin   tm2_tmin  tm3_tmin  tmax     tmin     tmax_derated  tmin_derated 
 #      │ Int64   String                 String     String   Float64           Float64      Float64      Float64   Float64   Float64   Float64    Float64   Float64   Float64  Float64  Float64       Float64      
@@ -595,8 +649,22 @@ show(
 #    8 │      8  CNSW->SNW South        NSW        NSW                  42.0         32.0          9.0  188.725   NaN        90.0      188.725      NaN        90.0   2720.0   2720.0      2404.07       2404.07
 #    9 │      9  VNI North              NSW        NSW                  42.0         32.0          9.0  150.704   NaN        90.0      125.381      NaN        90.0   2950.0   2590.0      2555.51       2195.84
 #   10 │     10  VNI South              VIC        NSW                  41.0         32.0          8.0  NaN        69.0218   69.0218   NaN          NaN        90.0   1000.0    400.0       771.254       374.711
-#   11 │     11  Heywood                VIC        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0    650.0    650.0       469.837       469.837
-#   12 │     12  SESA->CSA              SA         SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0    650.0    650.0       469.837       469.837
-#   13 │     13  Murraylink             VIC        SA                    7.7          7.7          1.2   46.0      46.0      46.0       46.0         46.0      46.0    220.0    200.0         0.0           0.0
-#   14 │     14  Basslink               TAS        VIC                  41.0         32.0          8.0  NaN       NaN       NaN        NaN          NaN       NaN      594.0    478.0       594.0         478.0
-#   15 │     15  Project EnergyConnect  NSW        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0    800.0    800.0       578.262       578.262
+#   11 │     11  Heywood                VIC        SA                   41.0         32.0          8.0  NaN       NaN        90.0      NaN          NaN        90.0    650.0    650.0       608.905       608.905
+#   12 │     12  SESA->CSA              SA         SA                   43.0         35.0         11.0  NaN       NaN        90.0      NaN          NaN        90.0    650.0    650.0       621.725       621.725
+#   13 │     13  Murraylink             VIC        SA                   41.0         32.0          8.0   46.0      46.0      46.0       46.0         46.0      46.0    220.0    200.0         0.0           0.0
+#   14 │     14  Basslink               TAS        VIC                   7.7          7.7          1.2  NaN       NaN       NaN        NaN          NaN       NaN      594.0    478.0       594.0         478.0
+#   15 │     15  Project EnergyConnect  NSW        SA                   42.0         32.0          9.0  NaN       NaN        90.0      NaN          NaN        90.0    800.0    800.0       757.188       757.188
+println("Ambient temperature = $(ta)°C:")
+show(
+    filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
+        :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tmax, :tmax_summer, :tmax_peak_demand, :tmax_derated,
+    ]],
+    allrows=true, allcols=true
+)
+
+show(
+    filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
+        :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_tmin, :tm2_tmin, :tm3_tmin, :tmin, :tmin_summer, :tmin_peak_demand, :tmin_derated
+    ]],
+    allrows=true, allcols=true
+)

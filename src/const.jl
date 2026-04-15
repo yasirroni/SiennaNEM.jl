@@ -110,22 +110,22 @@ function _populate_constants!()
         1 => 37.0,
         2 => 42.0,
         3 => 41.0,
-        4 => 43.0,
-        5 => 7.7,
+        4 => 7.7,
+        5 => 43.0,
     ))
     merge!(empty!(area_to_tref_summer), OrderedDict(
         1 => 32.0,
         2 => 32.0,
         3 => 32.0,
-        4 => 35.0,
-        5 => 7.7,
+        4 => 7.7,
+        5 => 35.0,
     ))
     merge!(empty!(area_to_tref_winter), OrderedDict(
         1 => 15.0,
         2 => 9.0,
         3 => 8.0,
-        4 => 11.0,
-        5 => 1.2,
+        4 => 1.2,
+        5 => 11.0,
     ))
     merge!(empty!(line_to_tmin_summer), OrderedDict(
         1 => 1200.0,
