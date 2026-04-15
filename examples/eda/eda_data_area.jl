@@ -72,6 +72,9 @@ data["area"]
 #    4 │       4  TAS                   0.0                  0.0    563.35              35.0         35.0         11.0
 #    5 │       5  SA                    0.0                  0.0   2435.99               7.7          7.7          1.2
 
+# NOTE:
+#   1. tmax is forward power flow capacity
+#   2. tmin is reverse power flow capacity
 SiennaNEM.add_id_area_col!(data["line"], bus_to_area; bus_col=:id_bus_from, area_col=:id_area_from)
 SiennaNEM.add_id_area_col!(data["line"], bus_to_area; bus_col=:id_bus_to, area_col=:id_area_to)
 add_area_data_col!(data["line"], SiennaNEM.area_to_name; id_area_col=:id_area_from, data_col=:area_from)
@@ -246,10 +249,23 @@ function infer_branch_thermal_t_max(t_1::Real, t_2::Real, p_max_1::Real, p_max_2
         return NaN
     end
 
-    return (p1_sq * t2 - p2_sq * t1) / denom
+    tm = (p1_sq * t2 - p2_sq * t1) / denom
+    if tm < max(t1, t2)
+        return NaN
+    end
+    return tm
 end
 
-# tm1: for t <= tref_summer, because we already 
+# for t <= tref_winter: cf = 1, use tmax and tmin
+# for tref_winter < t <= tref_summer: tm1, use tmax_summer and tmin_summer
+# for tref_summer < t <= tref_peak_demand: tm2, use tmax_summer and tmin_summer
+# for tref_peak_demand < t: tm3, use tmax_peak_demand and tmin_peak_demand
+# tm3 is min(tm2, tm_cap)
+
+# tm_cap = 250.0  # default for high-temperature conductors (ACSS)
+# tm_cap = 100.0  # default for high, standard-temperature conductors (ACSR)
+tm_cap = 90.0  # default for high, standard-temperature conductors
+
 # for the forward flow: tmax
 transform!(
     data["line"],
@@ -262,6 +278,30 @@ transform!(
     [:tref_winter_to, :tref_summer_to, :tmax, :tmax_summer] =>
         ByRow((tw, ts, pw, ps) -> infer_branch_thermal_t_max(tw, ts, pw, ps)) =>
             :tm1_to_tmax,
+)
+transform!(
+    data["line"],
+    [:tref_summer_from, :tref_peak_demand_from, :tmax_summer, :tmax_peak_demand] =>
+        ByRow((ts, tp, ps, pp) -> infer_branch_thermal_t_max(ts, tp, ps, pp)) =>
+            :tm2_from_tmax,
+)
+transform!(
+    data["line"],
+    [:tref_summer_to, :tref_peak_demand_to, :tmax_summer, :tmax_peak_demand] =>
+        ByRow((ts, tp, ps, pp) -> infer_branch_thermal_t_max(ts, tp, ps, pp)) =>
+            :tm2_to_tmax,
+)
+transform!(
+    data["line"],
+    :tm2_from_tmax =>
+        ByRow(tm2 -> (isfinite(tm2) ? min(tm2, tm_cap) : tm_cap)) =>
+            :tm3_from_tmax,
+)
+transform!(
+    data["line"],
+    :tm2_to_tmax =>
+        ByRow(tm2 -> (isfinite(tm2) ? min(tm2, tm_cap) : tm_cap)) =>
+            :tm3_to_tmax,
 )
 
 # for the reverse flow: tmin
@@ -277,55 +317,148 @@ transform!(
         ByRow((tw, ts, pw, ps) -> infer_branch_thermal_t_max(tw, ts, pw, ps)) =>
             :tm1_to_tmin,
 )
+transform!(
+    data["line"],
+    [:tref_summer_from, :tref_peak_demand_from, :tmin_summer, :tmin_peak_demand] =>
+        ByRow((ts, tp, ps, pp) -> infer_branch_thermal_t_max(ts, tp, ps, pp)) =>
+            :tm2_from_tmin,
+)
+transform!(
+    data["line"],
+    [:tref_summer_to, :tref_peak_demand_to, :tmin_summer, :tmin_peak_demand] =>
+        ByRow((ts, tp, ps, pp) -> infer_branch_thermal_t_max(ts, tp, ps, pp)) =>
+            :tm2_to_tmin,
+)
+transform!(
+    data["line"],
+    :tm2_from_tmin =>
+        ByRow(tm2 -> (isfinite(tm2) ? min(tm2, tm_cap) : tm_cap)) =>
+            :tm3_from_tmin,
+)
+transform!(
+    data["line"],
+    :tm2_to_tmin =>
+        ByRow(tm2 -> (isfinite(tm2) ? min(tm2, tm_cap) : tm_cap)) =>
+            :tm3_to_tmin,
+)
 
-# tm calculation
-# tm_default = 250.0  # default for high-temperature conductors (ACSS)
-# tm_default = 100.0  # default for high, standard-temperature conductors (ACSR)
-tm_default = 90.0  # default for high, standard-temperature conductors
+# Combine "from/to" without mixing directions:
+# - forward (tmax): take min(tm*_from_tmax, tm*_to_tmax)
+# - reverse (tmin): take min(tm*_from_tmin, tm*_to_tmin)
+# If both are non-finite -> NaN (keep missingness)
 transform!(
     data["line"],
-    [:tm1_from_tmax, :tm1_to_tmax, :tm1_from_tmin, :tm1_to_tmin] =>
-        ByRow((a, b, c, d) -> begin
-            vals = Float64[a, b, c, d]
-            good = filter(isfinite, vals)  # drops NaN/Inf
-            isempty(good) ? tm_default : minimum(good)
-        end) =>
-            :tm,
+    [:tm1_from_tmax, :tm1_to_tmax] =>
+        ByRow((a, b) -> begin
+            vals = (Float64(a), Float64(b))
+            good = filter(isfinite, vals)
+            isempty(good) ? NaN : minimum(good)
+        end) => :tm1_tmax,
 )
-# clip tm to <= tm_default
 transform!(
     data["line"],
-    :tm => ByRow(tm -> (isfinite(tm) ? min(tm, tm_default) : tm)) => :tm,
+    [:tm2_from_tmax, :tm2_to_tmax] =>
+        ByRow((a, b) -> begin
+            vals = (Float64(a), Float64(b))
+            good = filter(isfinite, vals)
+            isempty(good) ? NaN : minimum(good)
+        end) => :tm2_tmax,
 )
+transform!(
+    data["line"],
+    [:tm3_from_tmax, :tm3_to_tmax] =>
+        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tm3_tmax,
+)
+
+transform!(
+    data["line"],
+    [:tm1_from_tmin, :tm1_to_tmin] =>
+        ByRow((a, b) -> begin
+            vals = (Float64(a), Float64(b))
+            good = filter(isfinite, vals)
+            isempty(good) ? NaN : minimum(good)
+        end) => :tm1_tmin,
+)
+transform!(
+    data["line"],
+    [:tm2_from_tmin, :tm2_to_tmin] =>
+        ByRow((a, b) -> begin
+            vals = (Float64(a), Float64(b))
+            good = filter(isfinite, vals)
+            isempty(good) ? NaN : minimum(good)
+        end) => :tm2_tmin,
+)
+transform!(
+    data["line"],
+    [:tm3_from_tmin, :tm3_to_tmin] =>
+        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tm3_tmin,
+)
+
+# tm for HVDC lines:
+cols_tm = [:tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin]
+cols_tm_tmax = [:tm1_tmax, :tm2_tmax, :tm3_tmax]
+# HVDC Terranora should be limited to:
+#   1. To 46°C, the same as Murraylink for reverse flow (tmin)
+#   2. To 37.0°C for forward flow (tmax) as specified by the operator
+mask_terranora = data["line"].id_lin .== 5
+data["line"][mask_terranora, cols_tm] .=
+    ifelse.(
+        isfinite.(data["line"][mask_terranora, cols_tm]),
+        data["line"][mask_terranora, cols_tm],
+        46.0
+    )
+data["line"][mask_terranora, cols_tm] .=
+    min.(data["line"][mask_terranora, cols_tm], 46.0)
+data["line"][mask_terranora, cols_tm_tmax] .=
+    min.(data["line"][mask_terranora, cols_tm_tmax], 37.0)
 # HVDC Murraylink is specified by the operator to have a 46°C thermal limit
-data["line"][data["line"].id_lin.==13, :tm] .= 46.0
+data["line"][data["line"].id_lin.==13, cols_tm] .= 46.0
 # HVDC Basslink (undersea cable) is not impacted by ambient temperature
-data["line"][data["line"].id_lin.==14, :tm] .= NaN
-# NOTE: from calculation, HVDC Terranora (id_lin == 5)capable up to 53.8571°C, we keep
-# it as is. But, we need to check again if the reference is changed.
+data["line"][data["line"].id_lin.==14, cols_tm] .= NaN
+
+# NOTE: Now, we need to add tref for each line as we can't use nodes. For this,
+# we assume the lowest tref among the two ends as the line tref to be conservative.
+
+transform!(
+    data["line"],
+    [:tref_peak_demand_from, :tref_peak_demand_to] =>
+        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tref_peak_demand,
+)
+transform!(
+    data["line"],
+    [:tref_summer_from, :tref_summer_to] =>
+        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tref_summer,
+)
+transform!(
+    data["line"],
+    [:tref_winter_from, :tref_winter_to] =>
+        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tref_winter,
+)
+
 
 show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :id_bus_from, :id_bus_to, :tmax, :tmax_summer, :tref_summer_from, :tref_winter_from, :tref_summer_to, :tref_winter_to, :tm1_from_tmax, :tm1_to_tmax, :tm1_from_tmin, :tm1_to_tmin, :tm
+        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin
     ]], allrows=true, allcols=true)
-# 15×13 DataFrame
-#  Row │ id_lin  id_bus_from  id_bus_to  tmax     tmax_summer  tref_summer_from  tref_winter_from  tref_summer_to  tref_winter_to  tm1_from_tmax  tm1_to_tmax  tm1_from_tmin  tm1_to_tmin  
-#      │ Int64   Int64        Int64      Float64  Float64      Float64           Float64           Float64         Float64         Float64     Float64   Float64     Float64   
-# ─────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-#    1 │      1            2          1   1400.0       1200.0              32.0              15.0            32.0            15.0     79.0769   79.0769     79.0769    79.0769
-#    2 │      2            2          3   1050.0        700.0              32.0              15.0            32.0            15.0     45.6      45.6        46.7683    46.7683
-#    3 │      3            4          2   1100.0       1100.0              32.0              15.0            32.0            15.0    NaN       NaN         NaN        NaN
-#    4 │      4            5          4    745.0        745.0              32.0               9.0            32.0            15.0    NaN       NaN        2705.76    2008.26
-#    5 │      5            5          4     50.0         50.0              32.0               9.0            32.0            15.0    NaN       NaN          61.5714    53.8571
-#    6 │      6            6          5    910.0        910.0              32.0               9.0            32.0             9.0    NaN       NaN         139.108    139.108
-#    7 │      7            6          7   4730.0       4490.0              32.0               9.0            32.0             9.0    241.546   241.546     241.546    241.546
-#    8 │      8            6          7   2720.0       2540.0              32.0               9.0            32.0             9.0    188.725   188.725     188.725    188.725
-#    9 │      9            8          6   2950.0       2700.0              32.0               9.0            32.0             9.0    150.704   150.704     125.381    125.381
-#   10 │     10            9          8   1000.0       1000.0              32.0               8.0            32.0             9.0    NaN       NaN         NaN        NaN
-#   11 │     11            9         12    650.0        650.0              32.0               8.0             7.7             1.2    NaN       NaN         NaN        NaN
-#   12 │     12           12         11    650.0        650.0               7.7               1.2             7.7             1.2    NaN       NaN         NaN        NaN
-#   13 │     13            9         11    220.0        220.0              32.0               8.0             7.7             1.2    NaN       NaN         NaN        NaN
-#   14 │     14           10          9    594.0        594.0              35.0              11.0            32.0             8.0    NaN       NaN         NaN        NaN
-#   15 │     15            8         11    800.0        NaN                32.0               9.0             7.7             1.2    NaN       NaN         NaN        NaN
+
+#  15×13 DataFrame
+#  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_tmax  tm2_tmax  tm3_tmax  tm1_tmin   tm2_tmin  tm3_tmin 
+#      │ Int64   String                 String     String   Float64           Float64      Float64      Float64   Float64   Float64   Float64    Float64   Float64  
+# ─────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+#    1 │      1  CQ->NQ                 QLD        QLD                  37.0         32.0         15.0   79.0769  NaN        90.0       79.0769     NaN        90.0
+#    2 │      2  CQ->GG                 QLD        QLD                  37.0         32.0         15.0   45.6     NaN        90.0       46.7683     NaN        90.0
+#    3 │      3  SQ->CQ                 QLD        QLD                  37.0         32.0         15.0  NaN       NaN        90.0      NaN          NaN        90.0
+#    4 │      4  QNI North              NSW        QLD                  37.0         32.0          9.0  NaN        64.3441   64.3441  2008.26       NaN        90.0
+#    5 │      5  Terranora              NSW        QLD                  37.0         32.0          9.0   37.0      37.0      37.0       46.0         46.0      46.0
+#    6 │      6  QNI South              NSW        NSW                  42.0         32.0          9.0  NaN       NaN        90.0      139.108      NaN        90.0
+#    7 │      7  CNSW->SNW North        NSW        NSW                  42.0         32.0          9.0  241.546   NaN        90.0      241.546      NaN        90.0
+#    8 │      8  CNSW->SNW South        NSW        NSW                  42.0         32.0          9.0  188.725   NaN        90.0      188.725      NaN        90.0
+#    9 │      9  VNI North              NSW        NSW                  42.0         32.0          9.0  150.704   NaN        90.0      125.381      NaN        90.0
+#   10 │     10  VNI South              VIC        NSW                  41.0         32.0          8.0  NaN        69.0218   69.0218   NaN          NaN        90.0
+#   11 │     11  Heywood                VIC        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0
+#   12 │     12  SESA->CSA              SA         SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0
+#   13 │     13  Murraylink             VIC        SA                    7.7          7.7          1.2   46.0      46.0      46.0       46.0         46.0      46.0
+#   14 │     14  Basslink               TAS        VIC                  41.0         32.0          8.0  NaN       NaN       NaN        NaN          NaN       NaN
+#   15 │     15  Project EnergyConnect  NSW        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0
 
 """
 Branch thermal correction factor (CF) for ambient temperature.
