@@ -95,6 +95,29 @@ transform!(
     data["line"],
     :id_lin => ByRow(id -> get(line_to_tmax_peak_demand, id, NaN)) => :tmax_peak_demand,
 )
+
+# fill NaN
+transform!(
+    data["line"],
+    [:tmax, :tmax_summer] =>
+        ByRow((p1, p2) -> isnan(p2) ? p1 : p2) => :tmax_summer,
+)
+transform!(
+    data["line"],
+    [:tmax_summer, :tmax_peak_demand] =>
+        ByRow((p2, p3) -> isnan(p3) ? p2 : p3) => :tmax_peak_demand,
+)
+transform!(
+    data["line"],
+    [:tmin, :tmin_summer] =>
+        ByRow((p1, p2) -> isnan(p2) ? p1 : p2) => :tmin_summer,
+)
+transform!(
+    data["line"],
+    [:tmin_summer, :tmin_peak_demand] =>
+        ByRow((p2, p3) -> isnan(p3) ? p2 : p3) => :tmin_peak_demand,
+)
+
 show(
     filter(
         :investment => ==(false), filter(:active => ==(true), data["line"])
@@ -119,11 +142,7 @@ show(
 #   12 │     12  SESA->CSA              SA         SA                12         11    650.0    650.0        650.0        650.0             650.0             650.0
 #   13 │     13  Murraylink             VIC        SA                 9         11    220.0    200.0        220.0        200.0             220.0             100.0
 #   14 │     14  Basslink               TAS        VIC               10          9    594.0    478.0        594.0        478.0             594.0             478.0
-#   15 │     15  Project EnergyConnect  NSW        SA                 8         11    800.0    800.0        NaN          NaN               NaN               NaN
-
-# NOTE: don't fill NaN for tmax_summer, tmin_summer, tmax_peak_demand, and
-# tmin_peak_demand as it will be used in tm inference later. The tmax and tmin are from
-# and for winter data. Thus, we will derate from that point.
+#   15 │     15  Project EnergyConnect  NSW        SA                 8         11    800.0    800.0        800.0        800.0             800.0             800.0
 
 # NOTE: We don't actually need directional limit detection. We can ust use tmax and tmin
 # independently.
@@ -256,11 +275,19 @@ function infer_branch_thermal_t_max(t_1::Real, t_2::Real, p_max_1::Real, p_max_2
     return tm
 end
 
-# for t <= tref_winter: cf = 1, use tmax and tmin
-# for tref_winter < t <= tref_summer: tm1, use tmax_summer and tmin_summer
-# for tref_summer < t <= tref_peak_demand: tm2, use tmax_summer and tmin_summer
-# for tref_peak_demand < t: tm3, use tmax_peak_demand and tmin_peak_demand
+# for ta <= tref_winter: cf = 1, use tmax and tmin, return (tmax_winter, tmin_winter)
+# for tref_winter < ta <= tref_summer: tm1, use tmax_summer and tmin_summer, return (tmax_winter, tmin_winter) * cf 
+# for tref_summer < ta <= tref_peak_demand: tm2, use tmax_summer and tmin_summer, return (tmax_summer, tmin_winter) * cf (tmax_summer, tmin_winter)
+# for tref_peak_demand < ta: tm3, use tmax_peak_demand and tmin_peak_demand, return (tmax_peak_demand, tmin_winter) * cf 
 # tm3 is min(tm2, tm_cap)
+# 
+# NOTE: Sometimes, tm = NaN due to no impact of temperature on the line rating for a
+# specific piecewise region. In the case of tm == NaN:
+# 
+#   Region 1: return (tmax_winter, tmin_winter)
+#   Region 2: return (tmax_winter, tmin_winter)
+#   Region 3: return (tmax_summer, tmin_winter)
+#   Region 4: return (tmax_peak_demand, tmin_winter) (actually impossible due to tm_cap)
 
 # tm_cap = 250.0  # default for high-temperature conductors (ACSS)
 # tm_cap = 100.0  # default for high, standard-temperature conductors (ACSR)
@@ -461,88 +488,115 @@ show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))
 #   15 │     15  Project EnergyConnect  NSW        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0
 
 """
-Branch thermal correction factor (CF) for ambient temperature.
+    get_branch_thermal_capacity(
+        ta,
+        t1, t2, t3,
+        p1, p2, p3,
+        tm1, tm2, tm3,
+    ) -> Float64
 
-CF = sqrt((t_max - t_ambient)/(t_max - t_ref)) for t_ambient < t_max, else 0
-Returns NaN if inputs are not usable (NaN/Inf) or if t_max <= t_ref.
+Compute the thermally derated branch capacity at ambient temperature `ta`,
+using a 4-region piecewise model. Call once for forward flow (tmax) and
+once for reverse flow (tmin).
+
+    t1 = tref_winter, t2 = tref_summer, t3 = tref_peak_demand
+    p1 = capacity at t1 (winter), p2 = capacity at t2 (summer), p3 = capacity at t3 (peak demand)
+    tm1, tm2, tm3 = inferred conductor temperatures for regions 2, 3, 4
+
+Regions:
+
+| Region | Condition        | tm   | Base | CF anchor |
+|--------|------------------|------|------|-----------|
+| 1      | `ta ≤ t1`        | —    | `p1` | —         |
+| 2      | `t1 < ta ≤ t2`   | `tm1`| `p1` | `t1`      |
+| 3      | `t2 < ta ≤ t3`   | `tm2`| `p2` | `t2`      |
+| 4      | `ta > t3`        | `tm3`| `p3` | `t3`      |
+
+CF shape:
+
+    CF(ta) = sqrt(max(tm - ta, 0) / (tm - t_anchor))
+
+NaN fallback (when `tm` is NaN, no derating applies in that region):
+
+| Region | NaN fallback |
+|--------|--------------|
+| 2      | `p1`         |
+| 3      | `p2`         |
+| 4      | `p3`         |
 """
-function get_branch_thermal_correction_factor(t_ambient::Real, t_max::Real, t_ref::Real)
-    ta = Float64(t_ambient)
-    tm = Float64(t_max)
-    tr = Float64(t_ref)
+function get_branch_thermal_capacity(
+    ta::Real,
+    t1::Real, t2::Real, t3::Real,
+    p1::Real, p2::Real, p3::Real,
+    tm1::Real, tm2::Real, tm3::Real,
+)
+    ta = Float64(ta)
 
-    if !(isfinite(ta) && isfinite(tm) && isfinite(tr))
-        return NaN
-    end
-    if ta >= tm
-        return 0.0
-    end
-    if tm <= tr
-        return NaN
+    function cf(tm::Float64, t_anchor::Float64)
+        isnan(tm) && return NaN
+        return sqrt(max(tm - ta, 0.0) / (tm - t_anchor))
     end
 
-    return sqrt((tm - ta) / (tm - tr))
+    if ta <= t1
+        return Float64(p1)
+
+    elseif ta <= t2
+        c = cf(Float64(tm1), Float64(t1))
+        return isnan(c) ? Float64(p1) : Float64(p1) * c
+
+    elseif ta <= t3
+        c = cf(Float64(tm2), Float64(t2))
+        return isnan(c) ? Float64(p2) : Float64(p2) * c
+
+    else
+        c = cf(Float64(tm3), Float64(t3))
+        return isnan(c) ? Float64(p3) : Float64(p3) * c
+    end
 end
 
-# line-level tref (summer): highest tref between its terminal areas
+ta = 47.0  # ambient temperature for derating (°C)
+
+# Forward flow (tmax)
 transform!(
     data["line"],
-    [:tref_summer_from, :tref_summer_to] => ByRow(max) => :tref_summer_line,
+    [:tref_winter, :tref_summer, :tref_peak_demand,
+        :tmax, :tmax_summer, :tmax_peak_demand,
+        :tm1_tmax, :tm2_tmax, :tm3_tmax] =>
+        ByRow((args...) -> get_branch_thermal_capacity(ta, args...)) => :tmax_derated,
 )
 
-# CF at ambient using tm and tref_summer_line
-t_ambient_eval = 46.0
+# Reverse flow (tmin)
 transform!(
     data["line"],
-    [:tm, :tref_summer_line] =>
-        ByRow((tm, tr) -> get_branch_thermal_correction_factor(t_ambient_eval, tm, tr)) =>
-            :cf_at_42C,
+    [:tref_winter, :tref_summer, :tref_peak_demand,
+        :tmin, :tmin_summer, :tmin_peak_demand,
+        :tm1_tmin, :tm2_tmin, :tm3_tmin] =>
+        ByRow((args...) -> get_branch_thermal_capacity(ta, args...)) => :tmin_derated,
 )
-show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :id_bus_from, :id_bus_to, :tmax_summer, :tref_summer_from, :tref_summer_to, :tref_summer_line, :tm, :cf_at_42C,
-    ]], allrows=true, allcols=true)
 
-"""
-Branch thermal correction factor (CF) and slope (dCF/dT) for ambient temperature.
-
-CF = sqrt((t_max - t_ambient)/(t_max - t_ref)) for t_ambient < t_max, else 0
-dCF/dT = -(1 / (2 * sqrt(t_max - t_ref) * sqrt(t_max - t_ambient))) for t_ambient < t_max, else 0
-
-Returns slope in % per °C if `scale=100.0` (default).
-"""
-function get_branch_thermal_correction_factor_slope(
-    t_ambient::Real, t_max::Real, t_ref::Real;
-    scale::Real=100.0,
+show(
+    filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
+        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin, :tmax, :tmin, :tmax_derated, :tmin_derated
+    ]],
+    allrows=true, allcols=true
 )
-    ta = Float64(t_ambient)
-    tm = Float64(t_max)
-    tr = Float64(t_ref)
 
-    # guard rails
-    if !(isfinite(ta) && isfinite(tm) && isfinite(tr))
-        return NaN
-    end
-    if ta >= tm
-        return 0.0
-    end
-    if tm <= tr
-        return NaN  # invalid reference (would be division by zero/complex)
-    end
-
-    return -1.0 / (2.0 * sqrt(tm - tr) * sqrt(tm - ta)) * scale
-end
-
-# Example: compute slope at 42°C ambient, using tm and the chosen line tref
-transform!(
-    data["line"],
-    [:tm, :tref_summer_line] =>
-        ByRow((tm, tr) -> get_branch_thermal_correction_factor_slope(t_ambient_eval, tm, tr)) =>
-            :dcf_dt_pct_per_C_at_42C,
-)
-show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :id_bus_from, :id_bus_to, :tmax_summer, :tref_summer_from, :tref_summer_to, :tref_summer_line, :tm, :cf_at_42C, :dcf_dt_pct_per_C_at_42C,
-    ]], allrows=true, allcols=true)
-
-show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :alias, :tmax_summer, :tref_summer_from, :tref_summer_to, :tref_summer_line, :tm, :cf_at_42C, :dcf_dt_pct_per_C_at_42C,
-    ]], allrows=true, allcols=true)
+# 15×17 DataFrame
+#  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_tmax  tm2_tmax  tm3_tmax  tm1_tmin   tm2_tmin  tm3_tmin  tmax     tmin     tmax_derated  tmin_derated 
+#      │ Int64   String                 String     String   Float64           Float64      Float64      Float64   Float64   Float64   Float64    Float64   Float64   Float64  Float64  Float64       Float64      
+# ─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+#    1 │      1  CQ->NQ                 QLD        QLD                  37.0         32.0         15.0   79.0769  NaN        90.0       79.0769     NaN        90.0   1400.0   1400.0      1080.88       1080.88
+#    2 │      2  CQ->GG                 QLD        QLD                  37.0         32.0         15.0   45.6     NaN        90.0       46.7683     NaN        90.0   1050.0   1100.0       630.513       675.55
+#    3 │      3  SQ->CQ                 QLD        QLD                  37.0         32.0         15.0  NaN       NaN        90.0      NaN          NaN        90.0   1100.0   2100.0       990.807      1891.54
+#    4 │      4  QNI North              NSW        QLD                  37.0         32.0          9.0  NaN        64.3441   64.3441  2008.26       NaN        90.0    745.0   1170.0       545.55       1085.38
+#    5 │      5  Terranora              NSW        QLD                  37.0         32.0          9.0   37.0      37.0      37.0       46.0         46.0      46.0     50.0    200.0         0.0           0.0
+#    6 │      6  QNI South              NSW        NSW                  42.0         32.0          9.0  NaN       NaN        90.0      139.108      NaN        90.0    910.0   1025.0       861.301       880.231
+#    7 │      7  CNSW->SNW North        NSW        NSW                  42.0         32.0          9.0  241.546   NaN        90.0      241.546      NaN        90.0   4730.0   4730.0      4249.72       4249.72
+#    8 │      8  CNSW->SNW South        NSW        NSW                  42.0         32.0          9.0  188.725   NaN        90.0      188.725      NaN        90.0   2720.0   2720.0      2404.07       2404.07
+#    9 │      9  VNI North              NSW        NSW                  42.0         32.0          9.0  150.704   NaN        90.0      125.381      NaN        90.0   2950.0   2590.0      2555.51       2195.84
+#   10 │     10  VNI South              VIC        NSW                  41.0         32.0          8.0  NaN        69.0218   69.0218   NaN          NaN        90.0   1000.0    400.0       771.254       374.711
+#   11 │     11  Heywood                VIC        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0    650.0    650.0       469.837       469.837
+#   12 │     12  SESA->CSA              SA         SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0    650.0    650.0       469.837       469.837
+#   13 │     13  Murraylink             VIC        SA                    7.7          7.7          1.2   46.0      46.0      46.0       46.0         46.0      46.0    220.0    200.0         0.0           0.0
+#   14 │     14  Basslink               TAS        VIC                  41.0         32.0          8.0  NaN       NaN       NaN        NaN          NaN       NaN      594.0    478.0       594.0         478.0
+#   15 │     15  Project EnergyConnect  NSW        SA                    7.7          7.7          1.2  NaN       NaN        90.0      NaN          NaN        90.0    800.0    800.0       578.262       578.262
