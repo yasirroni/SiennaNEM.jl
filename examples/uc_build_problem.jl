@@ -31,10 +31,16 @@ optimizer = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 #   Note: In `run_simulation`, the full `horizon` is always used for each
 # optimization window.
 
-# input variables parameters
-system_data_dir = joinpath(@__DIR__, "../..", "NEM-reliability-suite", "data", "arrow")
-schedule_name = "schedule-1w"
-ts_data_dir = joinpath(system_data_dir, schedule_name)
+reference_trace = 4006
+poe = 10
+tyear = 2025
+file_format = "arrow"
+system_data_dir = joinpath(
+    @__DIR__, "../..", "NEM-reliability-suite", "data", "pisp-datasets",
+    "out-ref$reference_trace-poe$poe", file_format
+)
+ts_data_dir = joinpath(system_data_dir, "schedule-$tyear")
+
 scenario = 1
 horizon = Hour(48)
 interval = Hour(24)

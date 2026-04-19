@@ -73,27 +73,27 @@ data["area"]
 #    5 │       5  SA                    0.0                  0.0   2435.99               7.7          7.7          1.2
 
 # NOTE:
-#   1. tmax is forward power flow capacity
-#   2. tmin is reverse power flow capacity
+#   1. fwcap is forward power flow capacity
+#   2. rvcap is reverse power flow capacity
 SiennaNEM.add_id_area_col!(data["line"], bus_to_area; bus_col=:id_bus_from, area_col=:id_area_from)
 SiennaNEM.add_id_area_col!(data["line"], bus_to_area; bus_col=:id_bus_to, area_col=:id_area_to)
 add_area_data_col!(data["line"], SiennaNEM.area_to_name; id_area_col=:id_area_from, data_col=:area_from)
 add_area_data_col!(data["line"], SiennaNEM.area_to_name; id_area_col=:id_area_to, data_col=:area_to)
 transform!(
     data["line"],
-    :id_lin => ByRow(id -> get(line_to_tmin_summer, id, NaN)) => :tmin_summer,
+    :id_lin => ByRow(id -> get(line_to_rvcap_summer, id, NaN)) => :rvcap_summer,
 )
 transform!(
     data["line"],
-    :id_lin => ByRow(id -> get(line_to_tmax_summer, id, NaN)) => :tmax_summer,
+    :id_lin => ByRow(id -> get(line_to_fwcap_summer, id, NaN)) => :fwcap_summer,
 )
 transform!(
     data["line"],
-    :id_lin => ByRow(id -> get(line_to_tmin_peak_demand, id, NaN)) => :tmin_peak_demand,
+    :id_lin => ByRow(id -> get(line_to_rvcap_peak_demand, id, NaN)) => :rvcap_peak_demand,
 )
 transform!(
     data["line"],
-    :id_lin => ByRow(id -> get(line_to_tmax_peak_demand, id, NaN)) => :tmax_peak_demand,
+    :id_lin => ByRow(id -> get(line_to_fwcap_peak_demand, id, NaN)) => :fwcap_peak_demand,
 )
 
 # NOTE: We should not fill NaN for new units without any data of summer and winter flow.
@@ -103,11 +103,11 @@ transform!(
 show(
     filter(
         :investment => ==(false), filter(:active => ==(true), data["line"])
-    )[:, [:id_lin, :alias, :area_from, :area_to, :id_bus_from, :id_bus_to, :tmax, :tmin, :tmax_summer, :tmin_summer, :tmax_peak_demand, :tmin_peak_demand]],
+    )[:, [:id_lin, :alias, :area_from, :area_to, :id_bus_from, :id_bus_to, :fwcap, :rvcap, :fwcap_summer, :rvcap_summer, :fwcap_peak_demand, :rvcap_peak_demand]],
     allrows=true, allcols=true
 )
 # 15×12 DataFrame
-#  Row │ id_lin  alias                  area_from  area_to  id_bus_from  id_bus_to  tmax     tmin     tmax_summer  tmin_summer  tmax_peak_demand  tmin_peak_demand 
+#  Row │ id_lin  alias                  area_from  area_to  id_bus_from  id_bus_to  fwcap     rvcap     fwcap_summer  rvcap_summer  fwcap_peak_demand  rvcap_peak_demand 
 #      │ Int64   String                 String     String   Int64        Int64      Float64  Float64  Float64      Float64      Float64           Float64          
 # ─────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 #    1 │      1  CQ->NQ                 QLD        QLD                2          1   1400.0   1400.0       1200.0       1200.0            1200.0            1200.0
@@ -126,19 +126,19 @@ show(
 #   14 │     14  Basslink               TAS        VIC               10          9    594.0    478.0        594.0        478.0             594.0             478.0
 #   15 │     15  Project EnergyConnect  NSW        SA                 8         11    800.0    800.0        NaN          NaN               NaN               NaN
 
-# NOTE: We don't actually need directional limit detection. We can ust use tmax and tmin
+# NOTE: We don't actually need directional limit detection. We can ust use fwcap and rvcap
 # independently.
 # 
 # transform!(
 #     data["line"],
-#     [:tmax, :tmin] =>
-#         ByRow((tmax, tmin) -> (tmax <= tmin ? :tmax : :tmin)) =>
+#     [:fwcap, :rvcap] =>
+#         ByRow((fwcap, rvcap) -> (fwcap <= rvcap ? :fwcap : :rvcap)) =>
 #             :dir_limit,
 # )
 # transform!(
 #     data["line"],
 #     [:dir_limit, :id_bus_from, :id_bus_to] =>
-#         ByRow((dir, id_from, id_to) -> (dir === :tmax ? id_from : id_to)) =>
+#         ByRow((dir, id_from, id_to) -> (dir === :fwcap ? id_from : id_to)) =>
 #             :id_bus_limit,
 # )
 # SiennaNEM.add_id_area_col!(
@@ -182,11 +182,11 @@ show(
 # 
 #       t1, t2, pmax1, pmax2
 # 
-#   We use 1 as the winter and 2 as the summer. tmin and tmax in line data is from
-# winter data, that is reverse and forward. We need to add tmin and tmax columns for
+#   We use 1 as the winter and 2 as the summer. rvcap and fwcap in line data is from
+# winter data, that is reverse and forward. We need to add rvcap and fwcap columns for
 # summer first to fill the pmax2.
 # 
-#   Assume that we will only use tmax and tmax_summer (forward direction only). Then, we
+#   Assume that we will only use fwcap and fwcap_summer (forward direction only). Then, we
 # need to use t1 and t2, first from the :id_from then from the :id_to. 
 
 # add tref
@@ -257,164 +257,164 @@ function infer_branch_thermal_t_max(t_1::Real, t_2::Real, p_max_1::Real, p_max_2
     return tm
 end
 
-# for ta <= tref_winter: cf = 1, use tmax and tmin, return (tmax_winter, tmin_winter)
-# for tref_winter < ta <= tref_summer: tm1, use tmax_summer and tmin_summer, return (tmax_winter, tmin_winter) * cf 
-# for tref_summer < ta <= tref_peak_demand: tm2, use tmax_summer and tmin_summer, return (tmax_summer, tmin_winter) * cf (tmax_summer, tmin_winter)
-# for tref_peak_demand < ta: tm3, use tmax_peak_demand and tmin_peak_demand, return (tmax_peak_demand, tmin_winter) * cf 
+# for ta <= tref_winter: cf = 1, use fwcap and rvcap, return (fwcap_winter, rvcap_winter)
+# for tref_winter < ta <= tref_summer: tm1, use fwcap_summer and rvcap_summer, return (fwcap_winter, rvcap_winter) * cf 
+# for tref_summer < ta <= tref_peak_demand: tm2, use fwcap_summer and rvcap_summer, return (fwcap_summer, rvcap_winter) * cf (fwcap_summer, rvcap_winter)
+# for tref_peak_demand < ta: tm3, use fwcap_peak_demand and rvcap_peak_demand, return (fwcap_peak_demand, rvcap_winter) * cf 
 # tm3 is min(tm2, tm_cap)
 # 
 # NOTE: Sometimes, tm = NaN due to no impact of temperature on the line rating for a
 # specific piecewise region. In the case of tm == NaN:
 # 
-#   Region 1: return (tmax_winter, tmin_winter)
-#   Region 2: return (tmax_winter, tmin_winter)
-#   Region 3: return (tmax_summer, tmin_winter)
-#   Region 4: return (tmax_peak_demand, tmin_winter) (actually impossible due to tm_cap)
+#   Region 1: return (fwcap_winter, rvcap_winter)
+#   Region 2: return (fwcap_winter, rvcap_winter)
+#   Region 3: return (fwcap_summer, rvcap_winter)
+#   Region 4: return (fwcap_peak_demand, rvcap_winter) (actually impossible due to tm_cap)
 
 # tm_cap = 250.0  # default for high-temperature conductors (ACSS)
 # tm_cap = 100.0  # default for high, standard-temperature conductors (ACSR)
 tm_cap = 90.0  # default for high, standard-temperature conductors
 
-# for the forward flow: tmax
+# for the forward flow: fwcap
 transform!(
     data["line"],
-    [:tref_winter_from, :tref_summer_from, :tmax, :tmax_summer] =>
+    [:tref_winter_from, :tref_summer_from, :fwcap, :fwcap_summer] =>
         ByRow((tw, ts, pw, ps) -> infer_branch_thermal_t_max(tw, ts, pw, ps)) =>
-            :tm1_from_tmax,
+            :tm1_from_fwcap,
 )
 transform!(
     data["line"],
-    [:tref_winter_to, :tref_summer_to, :tmax, :tmax_summer] =>
+    [:tref_winter_to, :tref_summer_to, :fwcap, :fwcap_summer] =>
         ByRow((tw, ts, pw, ps) -> infer_branch_thermal_t_max(tw, ts, pw, ps)) =>
-            :tm1_to_tmax,
+            :tm1_to_fwcap,
 )
 transform!(
     data["line"],
-    [:tref_summer_from, :tref_peak_demand_from, :tmax_summer, :tmax_peak_demand] =>
+    [:tref_summer_from, :tref_peak_demand_from, :fwcap_summer, :fwcap_peak_demand] =>
         ByRow((ts, tp, ps, pp) -> infer_branch_thermal_t_max(ts, tp, ps, pp)) =>
-            :tm2_from_tmax,
+            :tm2_from_fwcap,
 )
 transform!(
     data["line"],
-    [:tref_summer_to, :tref_peak_demand_to, :tmax_summer, :tmax_peak_demand] =>
+    [:tref_summer_to, :tref_peak_demand_to, :fwcap_summer, :fwcap_peak_demand] =>
         ByRow((ts, tp, ps, pp) -> infer_branch_thermal_t_max(ts, tp, ps, pp)) =>
-            :tm2_to_tmax,
+            :tm2_to_fwcap,
 )
 transform!(
     data["line"],
-    :tm2_from_tmax =>
+    :tm2_from_fwcap =>
         ByRow(tm2 -> (isfinite(tm2) ? min(tm2, tm_cap) : tm_cap)) =>
-            :tm3_from_tmax,
+            :tm3_from_fwcap,
 )
 transform!(
     data["line"],
-    :tm2_to_tmax =>
+    :tm2_to_fwcap =>
         ByRow(tm2 -> (isfinite(tm2) ? min(tm2, tm_cap) : tm_cap)) =>
-            :tm3_to_tmax,
+            :tm3_to_fwcap,
 )
 
-# for the reverse flow: tmin
+# for the reverse flow: rvcap
 transform!(
     data["line"],
-    [:tref_winter_from, :tref_summer_from, :tmin, :tmin_summer] =>
+    [:tref_winter_from, :tref_summer_from, :rvcap, :rvcap_summer] =>
         ByRow((tw, ts, pw, ps) -> infer_branch_thermal_t_max(tw, ts, pw, ps)) =>
-            :tm1_from_tmin,
+            :tm1_from_rvcap,
 )
 transform!(
     data["line"],
-    [:tref_winter_to, :tref_summer_to, :tmin, :tmin_summer] =>
+    [:tref_winter_to, :tref_summer_to, :rvcap, :rvcap_summer] =>
         ByRow((tw, ts, pw, ps) -> infer_branch_thermal_t_max(tw, ts, pw, ps)) =>
-            :tm1_to_tmin,
+            :tm1_to_rvcap,
 )
 transform!(
     data["line"],
-    [:tref_summer_from, :tref_peak_demand_from, :tmin_summer, :tmin_peak_demand] =>
+    [:tref_summer_from, :tref_peak_demand_from, :rvcap_summer, :rvcap_peak_demand] =>
         ByRow((ts, tp, ps, pp) -> infer_branch_thermal_t_max(ts, tp, ps, pp)) =>
-            :tm2_from_tmin,
+            :tm2_from_rvcap,
 )
 transform!(
     data["line"],
-    [:tref_summer_to, :tref_peak_demand_to, :tmin_summer, :tmin_peak_demand] =>
+    [:tref_summer_to, :tref_peak_demand_to, :rvcap_summer, :rvcap_peak_demand] =>
         ByRow((ts, tp, ps, pp) -> infer_branch_thermal_t_max(ts, tp, ps, pp)) =>
-            :tm2_to_tmin,
+            :tm2_to_rvcap,
 )
 transform!(
     data["line"],
-    :tm2_from_tmin =>
+    :tm2_from_rvcap =>
         ByRow(tm2 -> (isfinite(tm2) ? min(tm2, tm_cap) : tm_cap)) =>
-            :tm3_from_tmin,
+            :tm3_from_rvcap,
 )
 transform!(
     data["line"],
-    :tm2_to_tmin =>
+    :tm2_to_rvcap =>
         ByRow(tm2 -> (isfinite(tm2) ? min(tm2, tm_cap) : tm_cap)) =>
-            :tm3_to_tmin,
+            :tm3_to_rvcap,
 )
 
 # Combine "from/to" without mixing directions:
-# - forward (tmax): take min(tm*_from_tmax, tm*_to_tmax)
-# - reverse (tmin): take min(tm*_from_tmin, tm*_to_tmin)
+# - forward (fwcap): take min(tm*_from_fwcap, tm*_to_fwcap)
+# - reverse (rvcap): take min(tm*_from_rvcap, tm*_to_rvcap)
 # If both are non-finite -> NaN (keep missingness)
 transform!(
     data["line"],
-    [:tm1_from_tmax, :tm1_to_tmax] =>
+    [:tm1_from_fwcap, :tm1_to_fwcap] =>
         ByRow((a, b) -> begin
             vals = (Float64(a), Float64(b))
             good = filter(isfinite, vals)
             isempty(good) ? NaN : minimum(good)
-        end) => :tm1_tmax,
+        end) => :tm1_fwcap,
 )
 transform!(
     data["line"],
-    [:tm2_from_tmax, :tm2_to_tmax] =>
+    [:tm2_from_fwcap, :tm2_to_fwcap] =>
         ByRow((a, b) -> begin
             vals = (Float64(a), Float64(b))
             good = filter(isfinite, vals)
             isempty(good) ? NaN : minimum(good)
-        end) => :tm2_tmax,
+        end) => :tm2_fwcap,
 )
 transform!(
     data["line"],
-    [:tm3_from_tmax, :tm3_to_tmax] =>
-        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tm3_tmax,
+    [:tm3_from_fwcap, :tm3_to_fwcap] =>
+        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tm3_fwcap,
 )
 
 transform!(
     data["line"],
-    [:tm1_from_tmin, :tm1_to_tmin] =>
+    [:tm1_from_rvcap, :tm1_to_rvcap] =>
         ByRow((a, b) -> begin
             vals = (Float64(a), Float64(b))
             good = filter(isfinite, vals)
             isempty(good) ? NaN : minimum(good)
-        end) => :tm1_tmin,
+        end) => :tm1_rvcap,
 )
 transform!(
     data["line"],
-    [:tm2_from_tmin, :tm2_to_tmin] =>
+    [:tm2_from_rvcap, :tm2_to_rvcap] =>
         ByRow((a, b) -> begin
             vals = (Float64(a), Float64(b))
             good = filter(isfinite, vals)
             isempty(good) ? NaN : minimum(good)
-        end) => :tm2_tmin,
+        end) => :tm2_rvcap,
 )
 transform!(
     data["line"],
-    [:tm3_from_tmin, :tm3_to_tmin] =>
-        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tm3_tmin,
+    [:tm3_from_rvcap, :tm3_to_rvcap] =>
+        ByRow((a, b) -> min(Float64(a), Float64(b))) => :tm3_rvcap,
 )
 
 show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :area_from, :area_to, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin
+        :id_lin, :alias, :area_from, :area_to, :tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap
     ]],
     allrows=true, allcols=true
 )
 
 # fix tm for HVDC lines:
-cols_tm = [:tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin]
-cols_tm_tmax = [:tm1_tmax, :tm2_tmax, :tm3_tmax]
+cols_tm = [:tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap]
+cols_tm_fwcap = [:tm1_fwcap, :tm2_fwcap, :tm3_fwcap]
 # HVDC Terranora should be limited to:
-#   1. To 46°C, the same as Murraylink for reverse flow (tmin)
-#   2. To 37.0°C for forward flow (tmax) as specified by the operator
+#   1. To 46°C, the same as Murraylink for reverse flow (rvcap)
+#   2. To 37.0°C for forward flow (fwcap) as specified by the operator
 mask_terranora = data["line"].id_lin .== 5
 data["line"][mask_terranora, cols_tm] .=
     ifelse.(
@@ -424,8 +424,8 @@ data["line"][mask_terranora, cols_tm] .=
     )
 data["line"][mask_terranora, cols_tm] .=
     min.(data["line"][mask_terranora, cols_tm], 46.0)
-data["line"][mask_terranora, cols_tm_tmax] .=
-    min.(data["line"][mask_terranora, cols_tm_tmax], 37.0)
+data["line"][mask_terranora, cols_tm_fwcap] .=
+    min.(data["line"][mask_terranora, cols_tm_fwcap], 37.0)
 # HVDC Murraylink is specified by the operator to have a 46°C thermal limit
 data["line"][data["line"].id_lin.==13, cols_tm] .= 46.0
 # HVDC Basslink (undersea cable) is not impacted by ambient temperature
@@ -452,26 +452,26 @@ transform!(
 
 # New lines without any data of summer and winter flow should be derated based on their
 # (default) line reference temperature.
-cols_missing_ratings = [:tmax_summer, :tmax_peak_demand, :tmin_summer, :tmin_peak_demand]
+cols_missing_ratings = [:fwcap_summer, :fwcap_peak_demand, :rvcap_summer, :rvcap_peak_demand]
 mask_no_seasonal_data =
     (data["line"].tech .== "ac_oh") .&
     reduce(.&, (.!isfinite.(data["line"][!, c]) for c in cols_missing_ratings))
 data["line"][mask_no_seasonal_data, cols_tm] .= constant_temperature["ac_oh_tm"]
 data["line"][mask_no_seasonal_data, [:tref_peak_demand, :tref_summer, :tref_winter]] .=
     constant_temperature["ac_oh_tref"]
-data["line"][mask_no_seasonal_data, :tmax_summer] .= data["line"][mask_no_seasonal_data, :tmax]
-data["line"][mask_no_seasonal_data, :tmax_peak_demand] .= data["line"][mask_no_seasonal_data, :tmax]
-data["line"][mask_no_seasonal_data, :tmin_summer] .= data["line"][mask_no_seasonal_data, :tmin]
-data["line"][mask_no_seasonal_data, :tmin_peak_demand] .= data["line"][mask_no_seasonal_data, :tmin]
+data["line"][mask_no_seasonal_data, :fwcap_summer] .= data["line"][mask_no_seasonal_data, :fwcap]
+data["line"][mask_no_seasonal_data, :fwcap_peak_demand] .= data["line"][mask_no_seasonal_data, :fwcap]
+data["line"][mask_no_seasonal_data, :rvcap_summer] .= data["line"][mask_no_seasonal_data, :rvcap]
+data["line"][mask_no_seasonal_data, :rvcap_peak_demand] .= data["line"][mask_no_seasonal_data, :rvcap]
 
 show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin
+        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap
     ]],
     allrows=true, allcols=true
 )
 
 # 15×13 DataFrame
-#  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_tmax  tm2_tmax  tm3_tmax  tm1_tmin   tm2_tmin  tm3_tmin 
+#  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_fwcap  tm2_fwcap  tm3_fwcap  tm1_rvcap   tm2_rvcap  tm3_rvcap 
 #      │ Int64   String                 String     String   Float64           Float64      Float64      Float64   Float64   Float64   Float64    Float64   Float64  
 # ─────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 #    1 │      1  CQ->NQ                 QLD        QLD                  37.0         32.0         15.0   79.0769  NaN        90.0       79.0769     NaN        90.0
@@ -499,8 +499,8 @@ show(filter(:investment => ==(false), filter(:active => ==(true), data["line"]))
     ) -> Float64
 
 Compute the thermally derated branch capacity at ambient temperature `ta`,
-using a 4-region piecewise model. Call once for forward flow (tmax) and
-once for reverse flow (tmin).
+using a 4-region piecewise model. Call once for forward flow (fwcap) and
+once for reverse flow (rvcap).
 
     t1 = tref_winter, t2 = tref_summer, t3 = tref_peak_demand
     p1 = capacity at t1 (winter), p2 = capacity at t2 (summer), p3 = capacity at t3 (peak demand)
@@ -590,26 +590,26 @@ transform!(
     data["line"],
     [:tech,
         :tref_winter, :tref_summer, :tref_peak_demand,
-        :tmax, :tmax_summer, :tmax_peak_demand,
-        :tm1_tmax, :tm2_tmax, :tm3_tmax] =>
+        :fwcap, :fwcap_summer, :fwcap_peak_demand,
+        :tm1_fwcap, :tm2_fwcap, :tm3_fwcap] =>
         ByRow((tech, args...) -> begin
             if tech == "ac_oh"
                 get_branch_thermal_capacity_ac_oh(ta, args...)
             elseif tech == "dc_oh"
-                # use tm3 as the conductor limit, p1 (tmax) as base capacity
+                # use tm3 as the conductor limit, p1 (fwcap) as base capacity
                 t1, t2, t3, p1, p2, p3, tm1, tm2, tm3 = args
                 get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
             else  # dc_ss
-                Float64(args[4])  # p1 = tmax, no derating
+                Float64(args[4])  # p1 = fwcap, no derating
             end
-        end) => :tmax_derated,
+        end) => :fwcap_derated,
 )
 transform!(
     data["line"],
     [:tech,
         :tref_winter, :tref_summer, :tref_peak_demand,
-        :tmin, :tmin_summer, :tmin_peak_demand,
-        :tm1_tmin, :tm2_tmin, :tm3_tmin] =>
+        :rvcap, :rvcap_summer, :rvcap_peak_demand,
+        :tm1_rvcap, :tm2_rvcap, :tm3_rvcap] =>
         ByRow((tech, args...) -> begin
             if tech == "ac_oh"
                 get_branch_thermal_capacity_ac_oh(ta, args...)
@@ -617,19 +617,19 @@ transform!(
                 t1, t2, t3, p1, p2, p3, tm1, tm2, tm3 = args
                 get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
             else  # dc_ss
-                Float64(args[4])  # p1 = tmin, no derating
+                Float64(args[4])  # p1 = rvcap, no derating
             end
-        end) => :tmin_derated,
+        end) => :rvcap_derated,
 )
 
 show(
     filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tm1_tmin, :tm2_tmin, :tm3_tmin, :tmax, :tmax_peak_demand, :tmax_derated, :tmin, :tmin_derated
+        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap, :fwcap, :fwcap_peak_demand, :fwcap_derated, :rvcap, :rvcap_derated
     ]],
     allrows=true, allcols=true
 )
 # 15×18 DataFrame
-#  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_tmax  tm2_tmax  tm3_tmax  tm1_tmin   tm2_tmin  tm3_tmin  tmax     tmax_peak_demand  tmax_derated  tmin     tmin_derated 
+#  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_fwcap  tm2_fwcap  tm3_fwcap  tm1_rvcap   tm2_rvcap  tm3_rvcap  fwcap     fwcap_peak_demand  fwcap_derated  rvcap     rvcap_derated 
 #      │ Int64   String                 String     String   Float64           Float64      Float64      Float64   Float64   Float64   Float64    Float64   Float64   Float64  Float64           Float64       Float64  Float64      
 # ─────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 #    1 │      1  CQ->NQ                 QLD        QLD                  37.0         32.0         15.0   79.0769  NaN        90.0       79.0769     NaN        90.0   1400.0            1200.0      1080.88    1400.0      1080.88
@@ -651,14 +651,14 @@ show(
 println("Ambient temperature = $(ta)°C:")
 show(
     filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_tmax, :tm2_tmax, :tm3_tmax, :tmax, :tmax_summer, :tmax_peak_demand, :tmax_derated,
+        :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :fwcap, :fwcap_summer, :fwcap_peak_demand, :fwcap_derated,
     ]],
     allrows=true, allcols=true
 )
 
 show(
     filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_tmin, :tm2_tmin, :tm3_tmin, :tmin, :tmin_summer, :tmin_peak_demand, :tmin_derated
+        :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap, :rvcap, :rvcap_summer, :rvcap_peak_demand, :rvcap_derated
     ]],
     allrows=true, allcols=true
 )
@@ -727,11 +727,11 @@ ta_df
 #    7 │     7       1         1  2030-01-01T00:00:00     40.0
 #    8 │     8       1         1  2030-06-01T00:00:00     40.0
 
-cap_tmax = get_branch_thermal_capacity(
+cap_fwcap = get_branch_thermal_capacity(
     ta_df, data["line"],
     (:tref_winter, :tref_summer, :tref_peak_demand,
-     :tmax, :tmax_summer, :tmax_peak_demand,
-     :tm1_tmax, :tm2_tmax, :tm3_tmax)
+     :fwcap, :fwcap_summer, :fwcap_peak_demand,
+     :tm1_fwcap, :tm2_fwcap, :tm3_fwcap)
 )
 # 8×5 DataFrame
 #  Row │ id     id_lin  scenario  date                 value    
@@ -746,11 +746,11 @@ cap_tmax = get_branch_thermal_capacity(
 #    7 │     5      15         2  2026-07-01T00:00:00   676.123
 #    8 │     6      15         3  2026-07-01T00:00:00   676.123
 
-cap_tmin = get_branch_thermal_capacity(
+cap_rvcap = get_branch_thermal_capacity(
     ta_df, data["line"],
     (:tref_winter, :tref_summer, :tref_peak_demand,
-     :tmin, :tmin_summer, :tmin_peak_demand,
-     :tm1_tmin, :tm2_tmin, :tm3_tmin)
+     :rvcap, :rvcap_summer, :rvcap_peak_demand,
+     :tm1_rvcap, :tm2_rvcap, :tm3_rvcap)
 )
 # 8×5 DataFrame
 #  Row │ id     id_lin  scenario  date                 value    

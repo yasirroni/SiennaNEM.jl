@@ -85,6 +85,11 @@ Returns a `Dict{Int, PSY.Line}` keyed by `id_lin`.
 function create_lines!(sys, df_line, buses; baseMVA=100)
     # !WARNING: df_line.name is not unique, thus we use ID instead of name
     # !WARNING: multiple parallel lines have different capacity with same r and x
+    # !WARNINGL AEMO use rvcap and fwcap that is directional and seasonal dependence
+
+    # Possible implementation:
+    #   https://nrel-sienna.github.io/PowerSystems.jl/stable/model_library/generated_AreaInterchange/
+    #   https://nrel-sienna.github.io/PowerSystems.jl/stable/model_library/generated_MonitoredLine/
     lines = Dict{Int,PSY.Line}()
     for row in eachrow(df_line)
         # !WARNING line 38 CNSW-SNW Option 2d has capacity of 0, we skip it
@@ -193,6 +198,9 @@ function create_generators!(sys, df_generator, buses; ENV_HYDRORES_AS_THERMAL=tr
         id = row.id_gen
         generators[id] = Dict{Int,PSY.Generator}()
 
+        # TODO: 
+        #   Check MUT MDT in EDA. It seems that PISP currently didn't provide MDT.
+        #   If there is no MDT data (MDT == 0), use MUT data.
         if row.DataType == ThermalStandard
             thermal_generators[id] = Dict{Int,PSY.ThermalStandard}()
 

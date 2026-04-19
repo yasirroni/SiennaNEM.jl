@@ -52,22 +52,22 @@ end
 
 ta_df = make_ta_grid(line_df, tas)
 
-cap_tmax_df = get_branch_thermal_capacity(
+cap_fwcap_df = get_branch_thermal_capacity(
     ta_df, line_df,
     (:tref_winter, :tref_summer, :tref_peak_demand,
-     :tmax, :tmax_summer, :tmax_peak_demand,
-     :tm1_tmax, :tm2_tmax, :tm3_tmax)
+     :fwcap, :fwcap_summer, :fwcap_peak_demand,
+     :tm1_fwcap, :tm2_fwcap, :tm3_fwcap)
 )
 
-cap_tmin_df = get_branch_thermal_capacity(
+cap_rvcap_df = get_branch_thermal_capacity(
     ta_df, line_df,
     (:tref_winter, :tref_summer, :tref_peak_demand,
-     :tmin, :tmin_summer, :tmin_peak_demand,
-     :tm1_tmin, :tm2_tmin, :tm3_tmin)
+     :rvcap, :rvcap_summer, :rvcap_peak_demand,
+     :tm1_rvcap, :tm2_rvcap, :tm3_rvcap)
 )
 
-cap_fwd = df_to_series(cap_tmax_df, line_df, tas)
-cap_rev = df_to_series(cap_tmin_df, line_df, tas)
+cap_fwd = df_to_series(cap_fwcap_df, line_df, tas)
+cap_rev = df_to_series(cap_rvcap_df, line_df, tas)
 
 norm_fwd = normalise_series(cap_fwd)
 norm_rev = normalise_series(cap_rev)
@@ -105,13 +105,13 @@ function make_plot(series_fwd, series_rev, labels, tas, ylabel, title_suffix; kw
 
     x = collect(Float64.(tas))
 
-    p_fwd = plot(; base..., title = "Forward flow (tmax) — $title_suffix", kwargs...)
+    p_fwd = plot(; base..., title = "Forward flow (fwcap) — $title_suffix", kwargs...)
     for (i, v) in enumerate(series_fwd)
         c, ls = style_at(i)
         plot!(p_fwd, x, v; label=labels[i], color=c, linestyle=ls, linewidth=1.5)
     end
 
-    p_rev = plot(; base..., title = "Reverse flow (tmin) — $title_suffix", kwargs...)
+    p_rev = plot(; base..., title = "Reverse flow (rvcap) — $title_suffix", kwargs...)
     for (i, v) in enumerate(series_rev)
         c, ls = style_at(i)
         plot!(p_rev, x, v; label=labels[i], color=c, linestyle=ls, linewidth=1.5)

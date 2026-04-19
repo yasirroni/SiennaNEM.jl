@@ -20,9 +20,6 @@ schedule_names = filter(
 )
 schedule_name = schedule_names[1]
 
-# system_data_dir = joinpath(@__DIR__, "../../..", "NEM-reliability-suite", "data", "arrow")
-# schedule_name = "schedule-1w"
-
 ts_data_dir = joinpath(system_data_dir, schedule_name)
 scenario = 1
 interval = Hour(24)

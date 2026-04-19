@@ -45,10 +45,10 @@ const area_to_name = OrderedDict{Int,String}()
 const area_to_tref_peak_demand = OrderedDict{Int,Float64}()
 const area_to_tref_summer = OrderedDict{Int,Float64}()
 const area_to_tref_winter = OrderedDict{Int,Float64}()
-const line_to_tmin_peak_demand = OrderedDict{Int,Float64}()
-const line_to_tmax_peak_demand = OrderedDict{Int,Float64}()
-const line_to_tmin_summer = OrderedDict{Int,Float64}()
-const line_to_tmax_summer = OrderedDict{Int,Float64}()
+const line_to_rvcap_peak_demand = OrderedDict{Int,Float64}()
+const line_to_fwcap_peak_demand = OrderedDict{Int,Float64}()
+const line_to_rvcap_summer = OrderedDict{Int,Float64}()
+const line_to_fwcap_summer = OrderedDict{Int,Float64}()
 const line_to_tech = OrderedDict{Int,String}()
 const optimization_result_handlers = Vector{Tuple{String,Function}}()
 const constant_temperature = Dict{String,Float64}()
@@ -128,7 +128,7 @@ function _populate_constants!()
         4 => 1.2,
         5 => 11.0,
     ))
-    merge!(empty!(line_to_tmin_summer), OrderedDict(
+    merge!(empty!(line_to_rvcap_summer), OrderedDict(
         1 => 1200.0,
         2 => 750.0,
         3 => 2100.0,
@@ -144,7 +144,7 @@ function _populate_constants!()
         13 => 200.0,
         14 => 478.0,
     ))
-    merge!(empty!(line_to_tmax_summer), OrderedDict(
+    merge!(empty!(line_to_fwcap_summer), OrderedDict(
         1 => 1200.0,
         2 => 700.0,
         3 => 1100.0,
@@ -160,7 +160,7 @@ function _populate_constants!()
         13 => 220.0,
         14 => 594.0,
     ))
-    merge!(empty!(line_to_tmin_peak_demand), OrderedDict(
+    merge!(empty!(line_to_rvcap_peak_demand), OrderedDict(
         1 => 1200.0,
         2 => 750.0,
         3 => 2100.0,
@@ -176,7 +176,7 @@ function _populate_constants!()
         13 => 100.0,
         14 => 478.0,
     ))
-    merge!(empty!(line_to_tmax_peak_demand), OrderedDict(
+    merge!(empty!(line_to_fwcap_peak_demand), OrderedDict(
         1 => 1200.0,
         2 => 700.0,
         3 => 1100.0,

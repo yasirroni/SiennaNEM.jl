@@ -21,8 +21,8 @@ trace_files = Dict(
     "storage_lmax_ts" => "ESS_lmax_sched",
     "storage_n_ts" => "ESS_n_sched",
     "storage_pmax_ts" => "ESS_pmax_sched",
-    "line_tmax_ts" => "Line_tmax_sched",
-    "line_tmin_ts" => "Line_tmin_sched",
+    "line_fwcap_ts" => "Line_fwcap_sched",
+    "line_rvcap_ts" => "Line_rvcap_sched",
 )
 
 nem_reliability_data_dir = joinpath(@__DIR__, "../../..", "NEM-reliability-suite")

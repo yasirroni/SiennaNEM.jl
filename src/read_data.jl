@@ -69,8 +69,8 @@ function read_ts_data!(data::Dict{String,Any}, data_dir::AbstractString; file_fo
         "storage_lmax_ts" => "ESS_lmax_sched",
         "storage_n_ts" => "ESS_n_sched",
         "storage_pmax_ts" => "ESS_pmax_sched",
-        "line_tmax_ts" => "Line_tmax_sched",
-        "line_tmin_ts" => "Line_tmin_sched",
+        "line_fwcap_ts" => "Line_fwcap_sched",
+        "line_rvcap_ts" => "Line_rvcap_sched",
     )
 
     for (k, fname) in files
@@ -134,8 +134,8 @@ function add_tsf_data!(
     df_storage_lmax_ts = data["storage_lmax_ts"]
     df_storage_n_ts = data["storage_n_ts"]
     df_storage_pmax_ts = data["storage_pmax_ts"]
-    df_line_tmax_ts = data["line_tmax_ts"]
-    df_line_tmin_ts = data["line_tmin_ts"]
+    df_line_fwcap_ts = data["line_fwcap_ts"]
+    df_line_rvcap_ts = data["line_rvcap_ts"]
 
     if date_start === nothing
         date_start = minimum(df_demand_l_ts.date)
@@ -164,11 +164,11 @@ function add_tsf_data!(
         df_storage, df_storage_pmax_ts, "id_ess", "pmax", scenario, date_start, date_end
     )
 
-    data["line_tmax_tsf"] = get_full_ts_df(
-        df_line, df_line_tmax_ts, "id_lin", "tmax", scenario, date_start, date_end
+    data["line_fwcap_tsf"] = get_full_ts_df(
+        df_line, df_line_fwcap_ts, "id_lin", "fwcap", scenario, date_start, date_end
     )
-    data["line_tmin_tsf"] = get_full_ts_df(
-        df_line, df_line_tmin_ts, "id_lin", "tmin", scenario, date_start, date_end
+    data["line_rvcap_tsf"] = get_full_ts_df(
+        df_line, df_line_rvcap_ts, "id_lin", "rvcap", scenario, date_start, date_end
     )
 end
 
@@ -182,7 +182,7 @@ Arguments
   - DataFrames: `"generator"`, `"storage"`, `"line"`
   - Time-series forward-filled DataFrames (added by `add_tsf_data!`): `"generator_n_tsf"`,
     `"generator_pmax_tsf"`, `"storage_emax_tsf"`, `"storage_lmax_tsf"`, `"storage_n_tsf"`,
-    `"storage_pmax_tsf"`, `"line_tmax_tsf"`, `"line_tmin_tsf"`. TSF tables are expected to
+    `"storage_pmax_tsf"`, `"line_fwcap_tsf"`, `"line_rvcap_tsf"`. TSF tables are expected to
     include a `:date` column and columns aligned with component ids.
 
 Behaviour / side effects
@@ -198,7 +198,7 @@ Behaviour / side effects
       column-wise maximum of `generator_pmax_tsf` (i.e., the maximum across the
       time-series for each generator is treated as its capacity).
   - Storage: sets `emax`, `lmax`, `n`, `pmax` from the corresponding TSF tables.
-  - Lines: sets `tmax`, `tmin` from the corresponding TSF tables.
+  - Lines: sets `fwcap`, `rvcap` from the corresponding TSF tables.
 - Modifies `data["generator"]`, `data["storage"]`, and `data["line"]` in-place.
 
 Notes / assumptions
@@ -223,6 +223,7 @@ function update_system_data_bound!(data::Dict{String,Any})
     df_generator[!, "n"] = Matrix(data["generator_n_tsf"][!, Not(:date)])[end, :]
     df_generator[ids_gen_nvre, "pmax"] = Matrix(data["generator_pmax_tsf"][!, string.(ids_gen_nvre)])[end, :]
 
+    # consider the maximum of the time-series for VRE capacity
     ids_gen_vre = findall(x -> x ∈ ["Solar", "Wind"], data["generator"].fuel)
     df_generator[ids_gen_vre, "pmax"] = vec(maximum(Matrix(data["generator_pmax_tsf"][!, string.(ids_gen_vre)]), dims=1))
 
@@ -233,8 +234,9 @@ function update_system_data_bound!(data::Dict{String,Any})
     df_storage[!, "n"] = Matrix(data["storage_n_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "pmax"] = Matrix(data["storage_pmax_tsf"][!, Not(:date)])[end, :]
 
-    df_line[!, "tmax"] = Matrix(data["line_tmax_tsf"][!, Not(:date)])[end, :]
-    df_line[!, "tmin"] = Matrix(data["line_tmin_tsf"][!, Not(:date)])[end, :]
+    # TODO: line size from ISP is seasonal, thus we need to update this to use maximum
+    df_line[!, "fwcap"] = Matrix(data["line_fwcap_tsf"][!, Not(:date)])[end, :]
+    df_line[!, "rvcap"] = Matrix(data["line_rvcap_tsf"][!, Not(:date)])[end, :]
 end
 
 """
