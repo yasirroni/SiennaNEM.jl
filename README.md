@@ -51,6 +51,12 @@ decision_models = SiennaNEM.run_simulation(
 
 ### Installation
 
+<!-- 
+NOTE: 
+Currently, `InfrastructureSystems = "=3.4.1"` is used in Project.toml due to bug
+https://github.com/NREL-Sienna/PowerSimulations.jl/issues/1595
+-->
+
 In your Julia global environment (starting Julia with `julia`, no `--project`),
 
 ```julia
