@@ -9,7 +9,7 @@ simulation = SiennaNEM.run_simulation(
     simulation_name="$(schedule_name)_scenario-$(scenario)",
     simulation_steps=simulation_steps,
     decision_model_kwargs=(
-        optimizer=solver,
+        optimizer=optimizer,
         name=problem_name,
     ),
 )

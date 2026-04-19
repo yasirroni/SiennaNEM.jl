@@ -150,7 +150,7 @@ horizon = Hour(72)
 interval = Hour(24)
 simulation_steps = 2
 template_uc = SiennaNEM.build_problem_base_uc()
-solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
+optimizer = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 results = []
 syss = Dict{Int, System}()
 
@@ -172,7 +172,7 @@ total_time = @elapsed begin
     _, timings = run_simulation(
         template_uc, sys;
         simulation_steps=simulation_steps,
-        decision_model_kwargs=(optimizer=solver,),
+        decision_model_kwargs=(optimizer=optimizer,),
         verbose=true,
     )
 end

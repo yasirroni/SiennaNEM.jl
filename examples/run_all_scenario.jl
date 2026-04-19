@@ -4,7 +4,7 @@ using HiGHS
 using Dates
 
 # Setup optimizer
-solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
+optimizer = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 
 # Configuration
 system_data_dir = "data/nem12/arrow"
@@ -75,7 +75,7 @@ for scenario in scenarios
                 template_uc, sys;
                 schedule_horizon=schedule_horizon,
                 window_shift=window_shift,
-                optimizer=solver,
+                optimizer=optimizer,
                 verbose=true,
             )
             println("✓ Decision model loop completed")

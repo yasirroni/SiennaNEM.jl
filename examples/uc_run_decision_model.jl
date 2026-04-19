@@ -6,7 +6,7 @@ decision_model = SiennaNEM.run_decision_model(
     template_uc, sys;
     horizon=horizon,  # time horizon for the decision model
     initial_time=DateTime("2025-01-08T00:00:00"),  # initial time for the decision model
-    optimizer=solver,  # optimizer for the decision model
+    optimizer=optimizer,  # optimizer for the decision model
     name=problem_name,
 )
 
