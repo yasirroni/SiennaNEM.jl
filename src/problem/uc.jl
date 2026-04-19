@@ -11,7 +11,7 @@ function build_problem_base_uc(;network_model=NFAPowerModel)
     #   PTDFPowerModel,
 
     template_uc = ProblemTemplate()
-    set_device_model!(template_uc, Line, StaticBranch)
+    set_device_model!(template_uc, MonitoredLine, StaticBranchBounds)
     set_device_model!(template_uc, ThermalStandard, ThermalStandardUnitCommitment)
     set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
     set_device_model!(template_uc, RenewableNonDispatch, FixedOutput)

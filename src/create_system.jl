@@ -78,9 +78,9 @@ end
 """
     create_lines!(sys, df_line, buses)
 
-Create PSY.Line components from the line DataFrame and add them to the system.
+Create PSY.MonitoredLine components from the line DataFrame and add them to the system.
 Skips lines with zero capacity and investment lines.
-Returns a `Dict{Int, PSY.Line}` keyed by `id_lin`.
+Returns a `Dict{Int, PSY.MonitoredLine}` keyed by `id_lin`.
 """
 function create_lines!(sys, df_line, buses; baseMVA=100)
     # !WARNING: df_line.name is not unique, thus we use ID instead of name
@@ -90,7 +90,7 @@ function create_lines!(sys, df_line, buses; baseMVA=100)
     # Possible implementation:
     #   https://nrel-sienna.github.io/PowerSystems.jl/stable/model_library/generated_AreaInterchange/
     #   https://nrel-sienna.github.io/PowerSystems.jl/stable/model_library/generated_MonitoredLine/
-    lines = Dict{Int,PSY.Line}()
+    lines = Dict{Int,PSY.MonitoredLine}()
     for row in eachrow(df_line)
         # !WARNING line 38 CNSW-SNW Option 2d has capacity of 0, we skip it
         if row.capacity == 0
@@ -106,7 +106,7 @@ function create_lines!(sys, df_line, buses; baseMVA=100)
         # NOTE: inactive lines are properly excluded by PowerModels.
 
         id = row.id_lin
-        line = PSY.Line(;
+        line = PSY.MonitoredLine(;
             name=string(id),
             available=row.active,
             active_power_flow=0.0,
@@ -118,6 +118,7 @@ function create_lines!(sys, df_line, buses; baseMVA=100)
             r=row.r,
             x=row.x,
             b=(from=0.0, to=0.0),
+            flow_limits=(from_to = row.fwcap, to_from = row.rvcap),
             rating=row.capacity / baseMVA,
             angle_limits=(min=-pi / 2, max=pi / 2),
         )

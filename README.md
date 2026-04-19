@@ -82,6 +82,11 @@ using Pkg
 Pkg.develop(path="../PISP.jl")
 ```
 
+Currently, there is a bug in using `MonitoredLine` that support different
+forward and backward flow. See this
+[PR](https://github.com/NREL-Sienna/PowerSimulations.jl/pull/1596). A temporary
+solution is to clone and install that PR locally with `Pkg.develop`.
+
 ### Add data
 
 ```julia

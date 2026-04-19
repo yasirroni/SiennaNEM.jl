@@ -234,9 +234,8 @@ function update_system_data_bound!(data::Dict{String,Any})
     df_storage[!, "n"] = Matrix(data["storage_n_tsf"][!, Not(:date)])[end, :]
     df_storage[!, "pmax"] = Matrix(data["storage_pmax_tsf"][!, Not(:date)])[end, :]
 
-    # TODO: line size from ISP is seasonal, thus we need to update this to use maximum
-    df_line[!, "fwcap"] = Matrix(data["line_fwcap_tsf"][!, Not(:date)])[end, :]
-    df_line[!, "rvcap"] = Matrix(data["line_rvcap_tsf"][!, Not(:date)])[end, :]
+    df_line[!, "fwcap"] = vec(maximum(Matrix(data["line_fwcap_tsf"][!, Not(:date)]), dims=1))
+    df_line[!, "rvcap"] = vec(maximum(Matrix(data["line_rvcap_tsf"][!, Not(:date)]), dims=1))
 end
 
 """
