@@ -8,9 +8,14 @@ using Printf
 include("bench_horizon.jl")
 
 # --- Input paths ---
-const DATA_DIR = "data/nem12/arrow"
-const TS_DIR = joinpath(DATA_DIR, "schedule-1w")
 const DF = DataFrames
+
+reference_trace = 4006
+poe = 10
+tyear = 2025
+file_format = "arrow"
+const DATA_DIR = joinpath(@__DIR__, "../..", "NEM-reliability-suite", "data", "pisp-datasets", "out-ref$reference_trace-poe$poe", file_format)
+const TS_DIR = joinpath(system_data_dir, "schedule-$tyear")
 
 # --- Run benchmarks ---
 println("Running horizon benchmarks...")

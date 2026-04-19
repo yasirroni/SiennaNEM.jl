@@ -33,7 +33,9 @@ export extend_generator_data, get_group_max
 export clean_ts_data!
 export create_system!, add_ts!
 export tech_to_primemover, tech_to_datatype, tech_to_fuel
-export area_to_name
+export area_to_name, area_to_tref_peak_demand, area_to_tref_summer, area_to_tref_winter
+export line_to_rvcap_peak_demand, line_to_fwcap_peak_demand
+export line_to_rvcap_summer, line_to_fwcap_summer, line_to_tech, constant_temperature
 export get_flat_generators, get_generator_units, count_all_generators
 export groupbyd, groupby_scenario_at_init_day, groupby_scenario_at_day
 export filter_value_from_df, filter_values_from_df
@@ -51,5 +53,9 @@ export build_problem_base_uc
 export run_decision_model, run_simulation
 
 export export_optimization_results_to_csv, get_results_dataframes
+
+function __init__()
+    _populate_constants!()
+end
 
 end

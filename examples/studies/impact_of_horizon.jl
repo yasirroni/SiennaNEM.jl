@@ -7,7 +7,7 @@ using PowerSystems
 using HiGHS
 
 # setup optimizer
-solver = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
+optimizer = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01)
 template_uc = SiennaNEM.build_problem_base_uc()
 
 nem_reliability_data_dir = joinpath(@__DIR__, "../../..", "NEM-reliability-suite")
@@ -19,9 +19,6 @@ schedule_names = filter(
     readdir(arrow_dir)
 )
 schedule_name = schedule_names[1]
-
-# system_data_dir = joinpath(@__DIR__, "../../..", "NEM-reliability-suite", "data", "arrow")
-# schedule_name = "schedule-1w"
 
 ts_data_dir = joinpath(system_data_dir, schedule_name)
 scenario = 1
@@ -48,7 +45,7 @@ decision_model = SiennaNEM.run_decision_model(
     template_uc, sys;
     horizon=horizon,
     initial_time=initial_time,
-    optimizer=solver,
+    optimizer=optimizer,
 )
 results[string(horizon.value)] = OptimizationProblemResults(decision_model)
 
@@ -66,7 +63,7 @@ decision_model = SiennaNEM.run_decision_model(
     template_uc, sys;
     horizon=horizon,
     initial_time=initial_time,
-    optimizer=solver,
+    optimizer=optimizer,
 )
 results[string(horizon.value) * "_prev"] = OptimizationProblemResults(decision_model)
 
@@ -84,7 +81,7 @@ results[string(horizon.value) * "_prev"] = OptimizationProblemResults(decision_m
 #     template_uc, sys;
 #     horizon=horizon,
 #     initial_time=initial_time,
-#     optimizer=solver,
+#     optimizer=optimizer,
 # )
 # results[string(horizon.value) * "_next"] = OptimizationProblemResults(decision_model)
 
@@ -102,7 +99,7 @@ results[string(horizon.value) * "_prev"] = OptimizationProblemResults(decision_m
 #     template_uc, sys;
 #     horizon=horizon,
 #     initial_time=initial_time,
-#     optimizer=solver,
+#     optimizer=optimizer,
 # )
 # results[string(horizon.value)] = OptimizationProblemResults(decision_model)
 
@@ -124,7 +121,7 @@ results[string(horizon.value) * "_prev"] = OptimizationProblemResults(decision_m
 #     simulation_name="$(schedule_name)_scenario-$(scenario)",
 #     simulation_steps=simulation_steps,
 #     decision_model_kwargs=(
-#         optimizer=solver,
+#         optimizer=optimizer,
 #         name=problem_name,
 #     ),
 # )

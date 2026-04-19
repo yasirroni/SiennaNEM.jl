@@ -37,8 +37,24 @@
 
 # https://nrel-sienna.github.io/PowerSystems.jl/stable/api/enumerated_types/
 
-if !isdefined(Main, :tech_to_primemover)
-    const tech_to_primemover = Dict(
+# Define once (const binding), then repopulate by mutation for Revise friendliness.
+const tech_to_primemover = Dict{String,PrimeMovers}()
+const tech_to_datatype = Dict{String,Any}()
+const tech_to_fuel = Dict{String,ThermalFuels}()
+const area_to_name = OrderedDict{Int,String}()
+const area_to_tref_peak_demand = OrderedDict{Int,Float64}()
+const area_to_tref_summer = OrderedDict{Int,Float64}()
+const area_to_tref_winter = OrderedDict{Int,Float64}()
+const line_to_rvcap_peak_demand = OrderedDict{Int,Float64}()
+const line_to_fwcap_peak_demand = OrderedDict{Int,Float64}()
+const line_to_rvcap_summer = OrderedDict{Int,Float64}()
+const line_to_fwcap_summer = OrderedDict{Int,Float64}()
+const line_to_tech = OrderedDict{Int,String}()
+const optimization_result_handlers = Vector{Tuple{String,Function}}()
+const constant_temperature = Dict{String,Float64}()
+
+function _populate_constants!()
+    merge!(empty!(tech_to_primemover), Dict(
         "Black Coal NSW" => PrimeMovers.ST,
         "Black Coal QLD" => PrimeMovers.ST,
         "Brown Coal VIC" => PrimeMovers.ST,
@@ -54,12 +70,9 @@ if !isdefined(Main, :tech_to_primemover)
         "Wind" => PrimeMovers.WT,
         "BESS" => PrimeMovers.BA,
         "PS" => PrimeMovers.HY,
-    )
-end
-
-# TODO: use tech instead of type
-if !isdefined(Main, :tech_to_datatype)
-    const tech_to_datatype = Dict(
+    ))
+    # TODO: use tech instead of type
+    merge!(empty!(tech_to_datatype), Dict(
         "Black Coal NSW" => ThermalStandard,
         "Black Coal QLD" => ThermalStandard,
         "Brown Coal VIC" => ThermalStandard,
@@ -75,10 +88,8 @@ if !isdefined(Main, :tech_to_datatype)
         "Wind" => RenewableDispatch,
         "BESS" => EnergyReservoirStorage,
         "PS" => HydroPumpTurbine,
-    )
-end
-if !isdefined(Main, :tech_to_fuel)
-    const tech_to_fuel = Dict(
+    ))
+    merge!(empty!(tech_to_fuel), Dict(
         "Black Coal NSW" => ThermalFuels.COAL,
         "Black Coal QLD" => ThermalFuels.COAL,
         "Brown Coal VIC" => ThermalFuels.COAL,
@@ -87,21 +98,112 @@ if !isdefined(Main, :tech_to_fuel)
         "Hydrogen-based gas turbines" => ThermalFuels.OTHER,
         "OCGT" => ThermalFuels.NATURAL_GAS,
         "CCGT" => ThermalFuels.NATURAL_GAS,
-    )
-end
-
-if !isdefined(Main, :area_to_name)
-    const area_to_name = OrderedDict(
+    ))
+    merge!(empty!(area_to_name), OrderedDict(
         1 => "QLD",
         2 => "NSW",
         3 => "VIC",
         4 => "TAS",
         5 => "SA",
-    )
-end
-
-if !isdefined(Main, :optimization_result_handlers)
-    const optimization_result_handlers = [
+    ))
+    # TODO: request this data to be available in PISP
+    merge!(empty!(area_to_tref_peak_demand), OrderedDict(
+        1 => 37.0,
+        2 => 42.0,
+        3 => 41.0,
+        4 => 7.7,
+        5 => 43.0,
+    ))
+    merge!(empty!(area_to_tref_summer), OrderedDict(
+        1 => 32.0,
+        2 => 32.0,
+        3 => 32.0,
+        4 => 7.7,
+        5 => 35.0,
+    ))
+    merge!(empty!(area_to_tref_winter), OrderedDict(
+        1 => 15.0,
+        2 => 9.0,
+        3 => 8.0,
+        4 => 1.2,
+        5 => 11.0,
+    ))
+    merge!(empty!(line_to_rvcap_summer), OrderedDict(
+        1 => 1200.0,
+        2 => 750.0,
+        3 => 2100.0,
+        4 => 1165.0,
+        5 => 150.0,
+        6 => 930.0,
+        7 => 4490.0,
+        8 => 2540.0,
+        9 => 2320.0,
+        10 => 400.0,
+        11 => 650.0,
+        12 => 650.0,
+        13 => 200.0,
+        14 => 478.0,
+    ))
+    merge!(empty!(line_to_fwcap_summer), OrderedDict(
+        1 => 1200.0,
+        2 => 700.0,
+        3 => 1100.0,
+        4 => 745.0,
+        5 => 50.0,
+        6 => 910.0,
+        7 => 4490.0,
+        8 => 2540.0,
+        9 => 2700.0,
+        10 => 1000.0,
+        11 => 650.0,
+        12 => 650.0,
+        13 => 220.0,
+        14 => 594.0,
+    ))
+    merge!(empty!(line_to_rvcap_peak_demand), OrderedDict(
+        1 => 1200.0,
+        2 => 750.0,
+        3 => 2100.0,
+        4 => 1205.0,
+        5 => 130.0,
+        6 => 930.0,
+        7 => 4490.0,
+        8 => 2540.0,
+        9 => 2320.0,
+        10 => 400.0,
+        11 => 650.0,
+        12 => 650.0,
+        13 => 100.0,
+        14 => 478.0,
+    ))
+    merge!(empty!(line_to_fwcap_peak_demand), OrderedDict(
+        1 => 1200.0,
+        2 => 700.0,
+        3 => 1100.0,
+        4 => 685.0,
+        5 => 0.0,
+        6 => 910.0,
+        7 => 4490.0,
+        8 => 2540.0,
+        9 => 2700.0,
+        10 => 870.0,
+        11 => 650.0,
+        12 => 650.0,
+        13 => 220.0,
+        14 => 594.0,
+    ))
+    merge!(empty!(line_to_tech), OrderedDict(
+        5 => "dc_oh",  # "Terranora", dc over head cable 
+        14 => "dc_ss",  # "Basslink", dc sub sea cable
+        13 => "dc_oh",  # "Murraylink", dc over head cable
+    ))
+    merge!(empty!(constant_temperature), Dict(
+        "ac_oh_tref" => 20.0,  # °C, no reduction below this
+        "ac_oh_tm" => 90.0,  # °C, maximum allowable line temperature
+        "dc_oh_tref" => 38.0,  # °C, no reduction below this
+        "dc_oh_derating_rate" => 0.125,  # 12.5% reduction per °C above base
+    ))
+    append!(empty!(optimization_result_handlers), [
         ("expressions", read_expressions),
         ("aux_variables", read_aux_variables),
         ("parameters", read_parameters),
@@ -112,5 +214,6 @@ if !isdefined(Main, :optimization_result_handlers)
         ("realized_parameters", read_realized_parameters),
         ("realized_variables", read_realized_variables),
         ("realized_duals", read_realized_duals),
-    ]
+    ])
+    return nothing
 end
