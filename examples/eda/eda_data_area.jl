@@ -706,6 +706,7 @@ end
 outdir = joinpath(@__DIR__, "..", "result", "eda")
 mkpath(outdir)
 
+# Line temperature data
 temerature_dir = joinpath(@__DIR__, "../..", "data/weather/temperature")
 temperature_file_name = "Line_2m_temperature-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"
 ta_df = CSV.read(joinpath(temerature_dir, temperature_file_name), DataFrame)
@@ -806,3 +807,140 @@ rvcap_sched
 #  9071 │  9071      53         1  2030-12-27 23:00:00  3000.0
 #  9072 │  9072      54         1  2030-12-27 23:00:00  2983.53
 #                                               9052 rows omitted
+
+# Generator temperature data
+# TODO: generator 23 missing, RoR
+temerature_dir = joinpath(@__DIR__, "../..", "data/weather/temperature")
+temperature_file_name = "Generator_2m_temperature-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"
+ta_df = CSV.read(joinpath(temerature_dir, temperature_file_name), DataFrame)
+ta_df
+
+"""
+    get_wind_correction_factor(
+        ta_df,
+        gen_df;
+        id_col=:id,
+        gen_id_col=:id_gen,
+        altitude_col=nothing,              # e.g. :tower_base_alt_masl if present in gen_df
+        t_no_derate_c=30.0,
+        t_region2_end_c=40.0,
+        t_stop_c=45.0,
+        cf_region2=0.809,
+        cf_region3=0.2363,
+        cf_stop=0.0,
+        altitude_stop_threshold_masl=500.0,
+        tower_base_alt_masl_default=0.0,
+        t2m_to_ambient_shift_c=-1.0,
+    ) -> DataFrame
+
+DataFrame version of the wind-turbine temperature correction factor (per-unit), piecewise-flat.
+
+This correction factor can be applied to wind generator capacity, not power output.
+
+Assumes `ta_df` and `gen_df` are already restricted to wind generators (filter outside).
+
+Python-equivalent rules (let `t = t2m + t2m_to_ambient_shift_c`):
+
+Normal altitude (`alt ≤ altitude_stop_threshold_masl`):
+- `t <  t_no_derate_c`              -> 1.0
+- `t_no_derate_c ≤ t <  t_region2_end_c` -> cf_region2
+- `t_region2_end_c ≤ t ≤ t_stop_c` -> cf_region3
+- `t >  t_stop_c`                  -> cf_stop
+
+High altitude (`alt > altitude_stop_threshold_masl`):
+- `t <  t_no_derate_c`              -> 1.0
+- `t_no_derate_c ≤ t ≤ t_region2_end_c` -> cf_region2
+- `t >  t_region2_end_c`            -> cf_stop
+
+Missing/unusable temperatures return `NaN` CF.
+
+Usage:
+
+    min(cf * gen_capacity, power_output)
+"""
+function get_wind_correction_factor(
+    ta_df::DataFrame,
+    gen_df::DataFrame;
+    id_col::Symbol = :id,
+    gen_id_col::Symbol = :id_gen,
+    altitude_col = nothing,
+    t_no_derate_c::Real = 30.0,
+    t_region2_end_c::Real = 40.0,
+    t_stop_c::Real = 45.0,
+    cf_region2::Real = 0.809,
+    cf_region3::Real = 0.2363,
+    cf_stop::Real = 0.0,
+    altitude_stop_threshold_masl::Real = 500.0,
+    tower_base_alt_masl_default::Real = 0.0,
+    t2m_to_ambient_shift_c::Real = -1.0,
+)
+    # Missing-safe scalar kernel (matches the Python logic exactly)
+    @inline function _wind_cf_scalar(t2m_c, tower_base_alt_masl)::Float64
+        (ismissing(t2m_c) || ismissing(tower_base_alt_masl)) && return NaN
+
+        t2m = Float64(t2m_c)
+        isfinite(t2m) || return NaN
+
+        t = t2m + Float64(t2m_to_ambient_shift_c)
+
+        t_no = Float64(t_no_derate_c)
+        t_r2 = Float64(t_region2_end_c)
+        t_st = Float64(t_stop_c)
+
+        cf2 = Float64(cf_region2)
+        cf3 = Float64(cf_region3)
+        cfs = Float64(cf_stop)
+
+        high_alt = Float64(tower_base_alt_masl) > Float64(altitude_stop_threshold_masl)
+
+        if high_alt
+            # High altitude: stop once above region2 end
+            if t < t_no
+                return 1.0
+            elseif t <= t_r2
+                return cf2
+            else
+                return cfs
+            end
+        else
+            # Normal altitude: three regions + stop
+            if t < t_no
+                return 1.0
+            elseif t < t_r2
+                return cf2
+            elseif t <= t_st
+                return cf3
+            else
+                return cfs
+            end
+        end
+    end
+
+    df = leftjoin(ta_df, gen_df; on=gen_id_col)
+
+    use_altitude = (altitude_col isa Symbol) && (altitude_col in names(df))
+    altvec = if use_altitude
+        # if altitude exists but has missings, fall back to default
+        something.(df[!, altitude_col], Float64(tower_base_alt_masl_default))
+    else
+        fill(Float64(tower_base_alt_masl_default), nrow(df))
+    end
+
+    df[!, :value] = _wind_cf_scalar.(df[!, :value], altvec)
+
+    return select(df, id_col, gen_id_col, :scenario, :date, :value)
+end
+
+wind_tech_values = ("Wind",)
+gen_wind_df = filter(:tech => t -> !ismissing(t) && (t in wind_tech_values), data["generator"])
+
+wind_id_gens = Set(gen_wind_df[!, :id_gen])
+ta_wind_df = filter(:id_gen => idg -> idg in wind_id_gens, ta_df)
+
+windcf_sched = get_wind_correction_factor(
+    ta_wind_df, gen_wind_df;
+    gen_id_col=:id_gen,
+    altitude_col=nothing,
+)
+CSV.write(joinpath(outdir, "Generator_cf_wind-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), windcf_sched)
+windcf_sched
