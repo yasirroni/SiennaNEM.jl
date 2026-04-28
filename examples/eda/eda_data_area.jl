@@ -815,6 +815,11 @@ temperature_file_name = "Generator_2m_temperature-method3-20301221_20301227-era5
 ta_df = CSV.read(joinpath(temerature_dir, temperature_file_name), DataFrame)
 ta_df
 
+# Add area data to generator DataFrame for temperature-based derating and analysis
+add_area_data_col!(data["generator"], SiennaNEM.area_to_tref_summer; data_col=:tref_peak_demand)
+add_area_data_col!(data["generator"], SiennaNEM.area_to_tref_summer; data_col=:tref_summer)
+add_area_data_col!(data["generator"], SiennaNEM.area_to_tref_winter; data_col=:tref_winter)
+
 # Wind turbine temperature capacity correction factor (CF) (per-unit), piecewise-flat
 """
     get_wind_thermal_correction_factor(
@@ -946,7 +951,6 @@ windcf_sched = get_wind_thermal_correction_factor(
 CSV.write(joinpath(outdir, "Generator_cf_wind-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), windcf_sched)
 windcf_sched
 
-
 # Photovoltaic temperature power output correction factor (CF) (per-unit), piecewise-flat
 """
     get_inverter_thermal_correction_factor(
@@ -954,7 +958,7 @@ windcf_sched
         gen_df;
         id_col=:id,
         gen_id_col=:id_gen,
-        t2m_to_ambient_shift_c=0.0,
+        t2m_to_ambient_shift_c=-10.0,
         cooling_dT=0.0,
         T_derate_start=50.0,
         T_cutoff=60.0,
@@ -980,7 +984,7 @@ function get_inverter_thermal_correction_factor(
     gen_df::DataFrame;
     id_col::Symbol = :id,
     gen_id_col::Symbol = :id_gen,
-    t2m_to_ambient_shift_c::Real = 0.0,
+    t2m_to_ambient_shift_c::Real = -10.0,
     cooling_dT::Real = 0.0,
     T_derate_start::Real = 50.0,
     T_cutoff::Real = 60.0,
@@ -1012,38 +1016,138 @@ function get_inverter_thermal_correction_factor(
     return select(df, id_col, gen_id_col, :scenario, :date, :value)
 end
 
+# """
+#     get_pv_module_temperature_correction_factor(
+#         ta_df,
+#         gen_df;
+#         id_col=:id,
+#         gen_id_col=:id_gen,
+#         t2m_to_ambient_shift_c=0.0,
+#         beta=-0.0036,
+#         G_poa_wm2=1000.0,
+#         v_wind_ms=1.0,
+#         U0=25.0,
+#         U1=6.84,
+#     ) -> DataFrame
+# 
+# PV module temperature derating CF (per-unit): Faiman (2008) + linear β.
+# 
+# This function assumes that the it will be multiplied with pv module power output
+# that is not already derated for temperature. Thus, the usage is:
+# 
+#     power_output_derated = cf * power_output
+# 
+# Let `T_amb = t2m + t2m_to_ambient_shift_c`.
+# 
+#     T_cell   = T_amb + G / (U0 + U1*v_wind)
+#     cf_mod   = 1 + beta*(T_cell - 25)
+# 
+# Guards:
+# - If `U0 + U1*v_wind ≤ 0` returns `NaN`.
+# - Missing/unusable temperatures return `NaN`.
+# 
+# Returns `:id, :id_gen, :scenario, :date, :value` with `:value = cf_module`.
+# """
+# function get_pv_module_temperature_correction_factor(
+#     ta_df::DataFrame,
+#     gen_df::DataFrame;
+#     id_col::Symbol = :id,
+#     gen_id_col::Symbol = :id_gen,
+#     t2m_to_ambient_shift_c::Real = 0.0,
+#     beta::Real = -0.0036,
+#     G_poa_wm2::Real = 1000.0,
+#     v_wind_ms::Real = 1.0,
+#     U0::Real = 25.0,
+#     U1::Real = 6.84,
+# )
+#     denom = Float64(U0) + Float64(U1) * Float64(v_wind_ms)
+# 
+#     @inline function _pv_mod_cf_scalar(t2m_c)::Float64
+#         ismissing(t2m_c) && return NaN
+#         denom > 0.0 || return NaN
+# 
+#         t2m = Float64(t2m_c)
+#         isfinite(t2m) || return NaN
+# 
+#         T_amb = t2m + Float64(t2m_to_ambient_shift_c)
+#         T_cell = T_amb + Float64(G_poa_wm2) / denom
+# 
+#         return 1.0 + Float64(beta) * (T_cell - 25.0)
+#     end
+# 
+#     df = leftjoin(ta_df, gen_df; on=gen_id_col)
+#     df[!, :value] = _pv_mod_cf_scalar.(df[!, :value])
+#     return select(df, id_col, gen_id_col, :scenario, :date, :value)
+# end
+
 """
     get_pv_module_temperature_correction_factor(
         ta_df,
         gen_df;
         id_col=:id,
         gen_id_col=:id_gen,
+        tref_col=:tref_peak_demand,
         t2m_to_ambient_shift_c=0.0,
-        beta=-0.0036,
+        beta=-0.0024,
         G_poa_wm2=1000.0,
         v_wind_ms=1.0,
         U0=25.0,
         U1=6.84,
     ) -> DataFrame
 
-PV module temperature derating CF (per-unit): Faiman (2008) + linear β.
+PV module temperature correction factor (per-unit) relative to a baseline where
+power is already derated at `T_ref = gen_df[tref_col]` for each generator.
 
-Let `T_amb = t2m + t2m_to_ambient_shift_c`.
+Returned `:value` is:
 
-    T_cell   = T_amb + G / (U0 + U1*v_wind)
-    cf_mod   = 1 + beta*(T_cell - 25)
+- `1.0` when `T_amb ≤ T_ref`
+- `cf_increase * cf_decrease` when `T_amb > T_ref`, where:
+
+    cf_at_ref   = 1 + beta*(T_cell(T_ref) - 25)
+    cf_increase = 1 / cf_at_ref
+    cf_decrease = 1 + beta*(T_cell(T_amb) - 25)
+
+So:
+    power_output_derated_at_ref * (returned_cf) = power_output_derated_at_ref * (cf(T_amb) / cf(T_ref))
+
+This function assumes that the it will be multiplied with pv module power output
+that is already derated for temperature. Thus, the usage is:
+
+    power_output_derated = cf * power_output_derated_at_ref
+
+beta :
+    Power temperature coefficient [/°C], dimensionless.
+    Default -0.0024 (-0.24 %/°C), representative of monocrystalline PERC.
+
+    Typical values by technology (IEC 61853-1:2011 measurement method;
+    values from commercial module datasheets 2020–2024):
+        • Mono PERC (e.g. LONGi LR5-72HPH, JA Solar JAM72S30):  -0.0034 to -0.0037
+        • TOPCon   (e.g. LONGi Hi-MO 9, Jinko Tiger Neo 78HL4):  -0.0028 to -0.0030
+        • HJT/SHJ  (e.g. REC Alpha Pure-R, Panasonic EverVolt):  -0.0024 to -0.0026
+        • CdTe     (First Solar Series 6 / Series 7 datasheet):   -0.0028
+        • CPV      (Spectrolab, Azur Space — concentrator cells): -0.0050 to -0.0060
+
+    ⚠ Criticism: β is treated as constant here, but it has a weak
+    irradiance dependence (≈+0.01 %/°C per decade of G reduction) and
+    increases slightly with module aging.  For most energy yield studies
+    the error is under 0.5 %, but high-precision bankable yield
+    assessments should use the irradiance-dependent β matrix from
+    IEC 61853-1 Table 1 measurements.
 
 Guards:
-- If `U0 + U1*v_wind ≤ 0` returns `NaN`.
 - Missing/unusable temperatures return `NaN`.
+- Missing `T_ref` returns `NaN`.
+- If `U0 + U1*v_wind ≤ 0` returns `NaN`.
+- If `cf_at_ref == 0` returns `NaN` (avoid division-by-zero).
 
-Returns `:id, :id_gen, :scenario, :date, :value` with `:value = cf_module`.
+Returns `:id, :id_gen, :scenario, :date, :value`.
 """
 function get_pv_module_temperature_correction_factor(
     ta_df::DataFrame,
     gen_df::DataFrame;
     id_col::Symbol = :id,
     gen_id_col::Symbol = :id_gen,
+    tref_col::Symbol = :tref_peak_demand,
     t2m_to_ambient_shift_c::Real = 0.0,
     beta::Real = -0.0036,
     G_poa_wm2::Real = 1000.0,
@@ -1053,21 +1157,40 @@ function get_pv_module_temperature_correction_factor(
 )
     denom = Float64(U0) + Float64(U1) * Float64(v_wind_ms)
 
-    @inline function _pv_mod_cf_scalar(t2m_c)::Float64
-        ismissing(t2m_c) && return NaN
+    @inline function _cf_mod_rel_scalar(t2m_c, tref_c)::Float64
+        (ismissing(t2m_c) || ismissing(tref_c)) && return NaN
         denom > 0.0 || return NaN
 
         t2m = Float64(t2m_c)
         isfinite(t2m) || return NaN
 
-        T_amb = t2m + Float64(t2m_to_ambient_shift_c)
-        T_cell = T_amb + Float64(G_poa_wm2) / denom
+        T_ref = Float64(tref_c)
+        isfinite(T_ref) || return NaN
 
-        return 1.0 + Float64(beta) * (T_cell - 25.0)
+        T_amb = t2m + Float64(t2m_to_ambient_shift_c)
+
+        # return 1 below/at baseline
+        if T_amb <= T_ref
+            return 1.0
+        end
+
+        # cf(T_ref)
+        T_cell_ref = T_ref + Float64(G_poa_wm2) / denom
+        cf_at_ref = 1.0 + Float64(beta) * (T_cell_ref - 25.0)
+        cf_at_ref == 0.0 && return NaN
+
+        cf_increase = 1.0 / cf_at_ref
+
+        # cf(T_amb)
+        T_cell = T_amb + Float64(G_poa_wm2) / denom
+        cf_decrease = 1.0 + Float64(beta) * (T_cell - 25.0)
+
+        return cf_increase * cf_decrease
     end
 
     df = leftjoin(ta_df, gen_df; on=gen_id_col)
-    df[!, :value] = _pv_mod_cf_scalar.(df[!, :value])
+    df[!, :value] = _cf_mod_rel_scalar.(df[!, :value], df[!, tref_col])
+
     return select(df, id_col, gen_id_col, :scenario, :date, :value)
 end
 
@@ -1091,7 +1214,6 @@ pvinv_largepv_sched = get_inverter_thermal_correction_factor(
 )
 CSV.write(joinpath(outdir, "Generator_cf_largepv_pvmod-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), pvmod_largepv_sched)
 CSV.write(joinpath(outdir, "Generator_cf_largepv_pvinv-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), pvinv_largepv_sched)
-
 
 # RoofPV (rooftop_flush: U0=20, U1=0; string inverter 40→55)
 roofpv_tech_values = ("RoofPV",)
