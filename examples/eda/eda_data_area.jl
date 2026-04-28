@@ -5,6 +5,12 @@
 using SiennaNEM
 using CSV
 
+method_number = 3
+date_start = "20380120"
+date_end = "20380126"
+era5_date = "20240213"
+window_name = "7d"
+
 bus_to_area = SiennaNEM.get_map_from_df(data["bus"], :id_bus, :id_area)
 SiennaNEM.add_id_area_col!(data["generator"], bus_to_area)
 SiennaNEM.add_area_df!(data)
@@ -581,88 +587,89 @@ function get_branch_thermal_capacity_dc_oh(ta::Real, tm::Real, p::Real)
     end
 end
 
-# ambient temperature for derating (°C)
-# ta = 25.0  # for testing mild temperature
-# ta = 36.0  # for testing summer temperature
-# ta = 42.0  # for testing high temperature
-ta = 47.0  # for testing extreme temperature
+# # For EDA and Testing
+# # ambient temperature for derating (°C)
+# # ta = 25.0  # for testing mild temperature
+# # ta = 36.0  # for testing summer temperature
+# # ta = 42.0  # for testing high temperature
+# ta = 47.0  # for testing extreme temperature
 
-transform!(
-    data["line"],
-    [:tech,
-        :tref_winter, :tref_summer, :tref_peak_demand,
-        :fwcap, :fwcap_summer, :fwcap_peak_demand,
-        :tm1_fwcap, :tm2_fwcap, :tm3_fwcap] =>
-        ByRow((tech, args...) -> begin
-            if tech == "ac_oh"
-                get_branch_thermal_capacity_ac_oh(ta, args...)
-            elseif tech == "dc_oh"
-                # use tm3 as the conductor limit, p1 (fwcap) as base capacity
-                t1, t2, t3, p1, p2, p3, tm1, tm2, tm3 = args
-                get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
-            else  # dc_ss
-                Float64(args[4])  # p1 = fwcap, no derating
-            end
-        end) => :fwcap_derated,
-)
-transform!(
-    data["line"],
-    [:tech,
-        :tref_winter, :tref_summer, :tref_peak_demand,
-        :rvcap, :rvcap_summer, :rvcap_peak_demand,
-        :tm1_rvcap, :tm2_rvcap, :tm3_rvcap] =>
-        ByRow((tech, args...) -> begin
-            if tech == "ac_oh"
-                get_branch_thermal_capacity_ac_oh(ta, args...)
-            elseif tech == "dc_oh"
-                t1, t2, t3, p1, p2, p3, tm1, tm2, tm3 = args
-                get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
-            else  # dc_ss
-                Float64(args[4])  # p1 = rvcap, no derating
-            end
-        end) => :rvcap_derated,
-)
+# transform!(
+#     data["line"],
+#     [:tech,
+#         :tref_winter, :tref_summer, :tref_peak_demand,
+#         :fwcap, :fwcap_summer, :fwcap_peak_demand,
+#         :tm1_fwcap, :tm2_fwcap, :tm3_fwcap] =>
+#         ByRow((tech, args...) -> begin
+#             if tech == "ac_oh"
+#                 get_branch_thermal_capacity_ac_oh(ta, args...)
+#             elseif tech == "dc_oh"
+#                 # use tm3 as the conductor limit, p1 (fwcap) as base capacity
+#                 t1, t2, t3, p1, p2, p3, tm1, tm2, tm3 = args
+#                 get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
+#             else  # dc_ss
+#                 Float64(args[4])  # p1 = fwcap, no derating
+#             end
+#         end) => :fwcap_derated,
+# )
+# transform!(
+#     data["line"],
+#     [:tech,
+#         :tref_winter, :tref_summer, :tref_peak_demand,
+#         :rvcap, :rvcap_summer, :rvcap_peak_demand,
+#         :tm1_rvcap, :tm2_rvcap, :tm3_rvcap] =>
+#         ByRow((tech, args...) -> begin
+#             if tech == "ac_oh"
+#                 get_branch_thermal_capacity_ac_oh(ta, args...)
+#             elseif tech == "dc_oh"
+#                 t1, t2, t3, p1, p2, p3, tm1, tm2, tm3 = args
+#                 get_branch_thermal_capacity_dc_oh(ta, tm3, p1)
+#             else  # dc_ss
+#                 Float64(args[4])  # p1 = rvcap, no derating
+#             end
+#         end) => :rvcap_derated,
+# )
 
-show(
-    filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap, :fwcap, :fwcap_peak_demand, :fwcap_derated, :rvcap, :rvcap_derated
-    ]],
-    allrows=true, allcols=true
-)
-# 15×18 DataFrame
-#  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_fwcap  tm2_fwcap  tm3_fwcap  tm1_rvcap   tm2_rvcap  tm3_rvcap  fwcap     fwcap_peak_demand  fwcap_derated  rvcap     rvcap_derated 
-#      │ Int64   String                 String     String   Float64           Float64      Float64      Float64   Float64   Float64   Float64    Float64   Float64   Float64  Float64           Float64       Float64  Float64      
-# ─────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-#    1 │      1  CQ->NQ                 QLD        QLD                  37.0         32.0         15.0   79.0769  NaN        90.0       79.0769     NaN        90.0   1400.0            1200.0      1080.88    1400.0      1080.88
-#    2 │      2  CQ->GG                 QLD        QLD                  37.0         32.0         15.0   45.6     NaN        90.0       46.7683     NaN        90.0   1050.0             700.0       630.513   1100.0       675.55
-#    3 │      3  SQ->CQ                 QLD        QLD                  37.0         32.0         15.0  NaN       NaN        90.0      NaN          NaN        90.0   1100.0            1100.0       990.807   2100.0      1891.54
-#    4 │      4  QNI North              NSW        QLD                  37.0         32.0          9.0  NaN        64.3441   64.3441  2008.26       NaN        90.0    745.0             685.0       545.55    1170.0      1085.38
-#    5 │      5  Terranora              NSW        QLD                  37.0         32.0          9.0   37.0      37.0      37.0       46.0         46.0      46.0     50.0               0.0         0.0      200.0         0.0
-#    6 │      6  QNI South              NSW        NSW                  42.0         32.0          9.0  NaN       NaN        90.0      139.108      NaN        90.0    910.0             910.0       861.301   1025.0       880.231
-#    7 │      7  CNSW->SNW North        NSW        NSW                  42.0         32.0          9.0  241.546   NaN        90.0      241.546      NaN        90.0   4730.0            4490.0      4249.72    4730.0      4249.72
-#    8 │      8  CNSW->SNW South        NSW        NSW                  42.0         32.0          9.0  188.725   NaN        90.0      188.725      NaN        90.0   2720.0            2540.0      2404.07    2720.0      2404.07
-#    9 │      9  VNI North              NSW        NSW                  42.0         32.0          9.0  150.704   NaN        90.0      125.381      NaN        90.0   2950.0            2700.0      2555.51    2590.0      2195.84
-#   10 │     10  VNI South              VIC        NSW                  41.0         32.0          8.0  NaN        69.0218   69.0218   NaN          NaN        90.0   1000.0             870.0       771.254    400.0       374.711
-#   11 │     11  Heywood                VIC        SA                   41.0         32.0          8.0  NaN       NaN        90.0      NaN          NaN        90.0    650.0             650.0       608.905    650.0       608.905
-#   12 │     12  SESA->CSA              SA         SA                   43.0         35.0         11.0  NaN       NaN        90.0      NaN          NaN        90.0    650.0             650.0       621.725    650.0       621.725
-#   13 │     13  Murraylink             VIC        SA                   41.0         32.0          8.0   46.0      46.0      46.0       46.0         46.0      46.0    220.0             220.0         0.0      200.0         0.0
-#   14 │     14  Basslink               TAS        VIC                   7.7          7.7          1.2  NaN       NaN       NaN        NaN          NaN       NaN      594.0             594.0       594.0      478.0       478.0
-#   15 │     15  Project EnergyConnect  NSW        SA                   20.0         20.0         20.0   90.0      90.0      90.0       90.0         90.0      90.0    800.0             800.0       627.011    800.0       627.011
+# show(
+#     filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
+#         :id_lin, :alias, :area_from, :area_to, :tref_peak_demand, :tref_summer, :tref_winter, :tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap, :fwcap, :fwcap_peak_demand, :fwcap_derated, :rvcap, :rvcap_derated
+#     ]],
+#     allrows=true, allcols=true
+# )
+# # 15×18 DataFrame
+# #  Row │ id_lin  alias                  area_from  area_to  tref_peak_demand  tref_summer  tref_winter  tm1_fwcap  tm2_fwcap  tm3_fwcap  tm1_rvcap   tm2_rvcap  tm3_rvcap  fwcap     fwcap_peak_demand  fwcap_derated  rvcap     rvcap_derated 
+# #      │ Int64   String                 String     String   Float64           Float64      Float64      Float64   Float64   Float64   Float64    Float64   Float64   Float64  Float64           Float64       Float64  Float64      
+# # ─────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+# #    1 │      1  CQ->NQ                 QLD        QLD                  37.0         32.0         15.0   79.0769  NaN        90.0       79.0769     NaN        90.0   1400.0            1200.0      1080.88    1400.0      1080.88
+# #    2 │      2  CQ->GG                 QLD        QLD                  37.0         32.0         15.0   45.6     NaN        90.0       46.7683     NaN        90.0   1050.0             700.0       630.513   1100.0       675.55
+# #    3 │      3  SQ->CQ                 QLD        QLD                  37.0         32.0         15.0  NaN       NaN        90.0      NaN          NaN        90.0   1100.0            1100.0       990.807   2100.0      1891.54
+# #    4 │      4  QNI North              NSW        QLD                  37.0         32.0          9.0  NaN        64.3441   64.3441  2008.26       NaN        90.0    745.0             685.0       545.55    1170.0      1085.38
+# #    5 │      5  Terranora              NSW        QLD                  37.0         32.0          9.0   37.0      37.0      37.0       46.0         46.0      46.0     50.0               0.0         0.0      200.0         0.0
+# #    6 │      6  QNI South              NSW        NSW                  42.0         32.0          9.0  NaN       NaN        90.0      139.108      NaN        90.0    910.0             910.0       861.301   1025.0       880.231
+# #    7 │      7  CNSW->SNW North        NSW        NSW                  42.0         32.0          9.0  241.546   NaN        90.0      241.546      NaN        90.0   4730.0            4490.0      4249.72    4730.0      4249.72
+# #    8 │      8  CNSW->SNW South        NSW        NSW                  42.0         32.0          9.0  188.725   NaN        90.0      188.725      NaN        90.0   2720.0            2540.0      2404.07    2720.0      2404.07
+# #    9 │      9  VNI North              NSW        NSW                  42.0         32.0          9.0  150.704   NaN        90.0      125.381      NaN        90.0   2950.0            2700.0      2555.51    2590.0      2195.84
+# #   10 │     10  VNI South              VIC        NSW                  41.0         32.0          8.0  NaN        69.0218   69.0218   NaN          NaN        90.0   1000.0             870.0       771.254    400.0       374.711
+# #   11 │     11  Heywood                VIC        SA                   41.0         32.0          8.0  NaN       NaN        90.0      NaN          NaN        90.0    650.0             650.0       608.905    650.0       608.905
+# #   12 │     12  SESA->CSA              SA         SA                   43.0         35.0         11.0  NaN       NaN        90.0      NaN          NaN        90.0    650.0             650.0       621.725    650.0       621.725
+# #   13 │     13  Murraylink             VIC        SA                   41.0         32.0          8.0   46.0      46.0      46.0       46.0         46.0      46.0    220.0             220.0         0.0      200.0         0.0
+# #   14 │     14  Basslink               TAS        VIC                   7.7          7.7          1.2  NaN       NaN       NaN        NaN          NaN       NaN      594.0             594.0       594.0      478.0       478.0
+# #   15 │     15  Project EnergyConnect  NSW        SA                   20.0         20.0         20.0   90.0      90.0      90.0       90.0         90.0      90.0    800.0             800.0       627.011    800.0       627.011
 
-println("Ambient temperature = $(ta)°C:")
-show(
-    filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :fwcap, :fwcap_summer, :fwcap_peak_demand, :fwcap_derated,
-    ]],
-    allrows=true, allcols=true
-)
+# println("Ambient temperature = $(ta)°C:")
+# show(
+#     filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
+#         :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_fwcap, :tm2_fwcap, :tm3_fwcap, :fwcap, :fwcap_summer, :fwcap_peak_demand, :fwcap_derated,
+#     ]],
+#     allrows=true, allcols=true
+# )
 
-show(
-    filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
-        :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap, :rvcap, :rvcap_summer, :rvcap_peak_demand, :rvcap_derated
-    ]],
-    allrows=true, allcols=true
-)
+# show(
+#     filter(:investment => ==(false), filter(:active => ==(true), data["line"]))[:, [
+#         :id_lin, :alias, :tref_winter, :tref_summer, :tref_peak_demand, :tm1_rvcap, :tm2_rvcap, :tm3_rvcap, :rvcap, :rvcap_summer, :rvcap_peak_demand, :rvcap_derated
+#     ]],
+#     allrows=true, allcols=true
+# )
 
 """
     get_branch_thermal_capacity(ta_df, line_df, cols; tech_col=:tech) -> DataFrame
@@ -708,7 +715,7 @@ mkpath(outdir)
 
 # Line temperature data
 temerature_dir = joinpath(@__DIR__, "../..", "data/weather/temperature")
-temperature_file_name = "Line_2m_temperature-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"
+temperature_file_name = "Line_2m_temperature-method$(method_number)-$(date_start)_$(date_end)-era5shape$(era5_date)_$(window_name)_AEST_sched_.csv"
 ta_df = CSV.read(joinpath(temerature_dir, temperature_file_name), DataFrame)
 ta_df
 # 9072×5 DataFrame
@@ -811,7 +818,8 @@ rvcap_sched
 # Generator temperature data
 # TODO: generator 23 missing, RoR
 temerature_dir = joinpath(@__DIR__, "../..", "data/weather/temperature")
-temperature_file_name = "Generator_2m_temperature-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"
+temperature_file_name = "Generator_2m_temperature-method$(method_number)-$(date_start)_$(date_end)-era5shape$(era5_date)_$(window_name)_AEST_sched_.csv"
+
 ta_df = CSV.read(joinpath(temerature_dir, temperature_file_name), DataFrame)
 ta_df
 
@@ -831,32 +839,35 @@ add_area_data_col!(data["generator"], SiennaNEM.area_to_tref_winter; data_col=:t
         t_no_derate_c=30.0,
         t_region2_end_c=40.0,
         t_stop_c=45.0,
-        cf_region2=0.809,
-        cf_region3=0.2363,
-        cf_stop=0.0,
+        dcf_dt_region2=-0.00909,
+        dcf_dt_region3=-0.10909,
         altitude_stop_threshold_masl=500.0,
         tower_base_alt_masl_default=0.0,
         t2m_to_ambient_shift_c=-1.0,
     ) -> DataFrame
 
-DataFrame version of the wind-turbine temperature correction factor (per-unit), piecewise-flat.
+DataFrame version of the wind-turbine temperature correction factor (per-unit), piecewise-linear.
 
 This correction factor can be applied to wind generator capacity, not power output.
 
 Assumes `ta_df` and `gen_df` are already restricted to wind generators (filter outside).
 
-Python-equivalent rules (let `t = t2m + t2m_to_ambient_shift_c`):
+The correction factor at the Region 2/3 boundary is always derived from `dcf_dt_region2`,
+ensuring internal consistency.
+
+Regions (let `t = t2m + t2m_to_ambient_shift_c`):
 
 Normal altitude (`alt ≤ altitude_stop_threshold_masl`):
-- `t <  t_no_derate_c`              -> 1.0
-- `t_no_derate_c ≤ t <  t_region2_end_c` -> cf_region2
-- `t_region2_end_c ≤ t ≤ t_stop_c` -> cf_region3
-- `t >  t_stop_c`                  -> cf_stop
+- `t <  t_no_derate_c`                     -> `cf = 1.0`
+- `t_no_derate_c  ≤ t <  t_region2_end_c`  -> `cf = 1.0 + dcf_dt_region2 * (t - t_no_derate_c)`
+- `t_region2_end_c ≤ t ≤ t_stop_c`         -> `cf = cf_region2_end + dcf_dt_region3 * (t - t_region2_end_c)`
+                                               where `cf_region2_end = 1.0 + dcf_dt_region2 * (t_region2_end_c - t_no_derate_c)`
+- `t >  t_stop_c`                           -> `cf = 0.0`
 
 High altitude (`alt > altitude_stop_threshold_masl`):
-- `t <  t_no_derate_c`              -> 1.0
-- `t_no_derate_c ≤ t ≤ t_region2_end_c` -> cf_region2
-- `t >  t_region2_end_c`            -> cf_stop
+- `t <  t_no_derate_c`                     -> `cf = 1.0`
+- `t_no_derate_c  ≤ t ≤ t_region2_end_c`   -> `cf = 1.0 + dcf_dt_region2 * (t - t_no_derate_c)`
+- `t >  t_region2_end_c`                    -> `cf = 0.0`
 
 Missing/unusable temperatures return `NaN` CF.
 
@@ -873,14 +884,13 @@ function get_wind_thermal_correction_factor(
     t_no_derate_c::Real = 30.0,
     t_region2_end_c::Real = 40.0,
     t_stop_c::Real = 45.0,
-    cf_region2::Real = 0.809,
-    cf_region3::Real = 0.2363,
-    cf_stop::Real = 0.0,
+    dcf_dt_region2::Real = -0.00909,
+    dcf_dt_region3::Real = -0.10909,
     altitude_stop_threshold_masl::Real = 500.0,
     tower_base_alt_masl_default::Real = 0.0,
     t2m_to_ambient_shift_c::Real = -1.0,
 )
-    # Missing-safe scalar kernel (matches the Python logic exactly)
+    # Missing-safe scalar kernel
     @inline function _wind_cf_scalar(t2m_c, tower_base_alt_masl)::Float64
         (ismissing(t2m_c) || ismissing(tower_base_alt_masl)) && return NaN
 
@@ -893,31 +903,35 @@ function get_wind_thermal_correction_factor(
         t_r2 = Float64(t_region2_end_c)
         t_st = Float64(t_stop_c)
 
-        cf2 = Float64(cf_region2)
-        cf3 = Float64(cf_region3)
-        cfs = Float64(cf_stop)
+        # Boundary value, used only in the normal-altitude Region 3
+        cf_r2_end = 1.0 + Float64(dcf_dt_region2) * (t_r2 - t_no)
 
         high_alt = Float64(tower_base_alt_masl) > Float64(altitude_stop_threshold_masl)
 
         if high_alt
-            # High altitude: stop once above region2 end
+            # High altitude: stop once above region 2 end
+            # Note: boundary at t_r2 is inclusive (<=) here,
+            # unlike the normal-altitude branch (<), so cf is continuous at the boundary.
             if t < t_no
                 return 1.0
             elseif t <= t_r2
-                return cf2
+                return 1.0 + Float64(dcf_dt_region2) * (t - t_no)
             else
-                return cfs
+                return 0.0
             end
         else
             # Normal altitude: three regions + stop
             if t < t_no
                 return 1.0
             elseif t < t_r2
-                return cf2
+                # Region 2: linear derate begins
+                return 1.0 + Float64(dcf_dt_region2) * (t - t_no)
             elseif t <= t_st
-                return cf3
+                # Region 3: steeper linear derate, anchored to the computed boundary value
+                return cf_r2_end + Float64(dcf_dt_region3) * (t - t_r2)
             else
-                return cfs
+                # Region 4: full stop
+                return 0.0
             end
         end
     end
@@ -950,6 +964,9 @@ windcf_sched = get_wind_thermal_correction_factor(
 )
 CSV.write(joinpath(outdir, "Generator_cf_wind-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), windcf_sched)
 windcf_sched
+
+# We can see here that lots of wind became 0
+# 1-minimum(windcf_sched[:, :value]) * 100
 
 # Photovoltaic temperature power output correction factor (CF) (per-unit), piecewise-flat
 """
@@ -1235,3 +1252,15 @@ pvinv_roofpv_sched = get_inverter_thermal_correction_factor(
 )
 CSV.write(joinpath(outdir, "Generator_cf_roofpv_pvmod-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), pvmod_roofpv_sched)
 CSV.write(joinpath(outdir, "Generator_cf_roofpv_pvinv-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), pvinv_roofpv_sched)
+
+# # For assumed ISP already derated
+# julia> 1-minimum(pvmod_largepv_sched[:, :value]) * 100
+# 5.994533452480866
+# julia> 1-minimum(pvmod_roofpv_sched[:, :value]) * 100
+# 6.499367547383172
+
+# # For assumed ISP not yet derated
+# julia> 1-minimum(pvmod_roofpv_sched[:, :value]) * 100
+# 25.68569732666015
+# julia> 1-minimum(pvmod_largepv_sched[:, :value]) * 100
+# 18.99222998997674

@@ -130,3 +130,81 @@ savefig(p_capacity, joinpath(imgs_dir, "plot_branch_capacity_derating_thermal_fu
 p2_fwd, p2_rev = make_plot(norm_fwd, norm_rev, labels, tas, "Normalised capacity (0–1)", "normalised capacity"; ylims=(0, 1.05))
 p_norm = plot(p2_fwd, p2_rev; layout=(2, 1), size=(950, 860), dpi=150)
 savefig(p_norm, joinpath(imgs_dir, "plot_branch_normalised_capacity_derating_thermal_functions.png"))
+
+using Plots
+
+# Parse dates once
+windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")
+
+id_gen_to_name = get_map_from_df(data["generator"], :id_gen, :name)
+gen_ids = unique(windcf_sched[!, :id_gen])
+
+# Filter by date range
+dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
+windcf_filtered = filter(:datetime => d -> dt_start <= d <= dt_end, windcf_sched)
+
+plt = plot(
+    xlabel = "Date",
+    ylabel = "Correction Factor (p.u.)",
+    title  = "Wind Thermal Correction Factor by Generator",
+    legend = :outertopright,
+    size   = (1000, 500),
+)
+
+for gid in gen_ids
+    sub = filter(:id_gen => ==(gid), windcf_filtered)
+    sort!(sub, :datetime)
+    plot!(plt, sub[!, :datetime], sub[!, :value]; label = id_gen_to_name[gid])
+end
+
+plt
+
+using Plots
+
+# Parse dates
+windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")
+ta_df[!, :datetime]        = DateTime.(ta_df[!, :date], "yyyy-mm-dd HH:MM:SS")
+
+# Filter by date range
+dt_start = DateTime("2038-01-20 00:00:00", "yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2038-01-26 23:00:00", "yyyy-mm-dd HH:MM:SS")
+
+# Filter WIND_SNSW (id_gen = 120) within date range
+id_gen = 120  # WIND_SNSW
+cf_snsw = filter(
+    r -> r.id_gen == id_gen && dt_start <= r.datetime <= dt_end,
+    windcf_sched,
+)
+sort!(cf_snsw, :datetime)
+
+ta_snsw = filter(
+    r -> r.id_gen == id_gen && dt_start <= r.datetime <= dt_end,
+    ta_df,
+)
+sort!(ta_snsw, :datetime)
+
+# Two-panel plot: CF on top, temperature on bottom
+plt = plot(
+    layout = (2, 1),
+    size   = (1000, 600),
+    xlabel = "Date",
+)
+
+plot!(plt[1],
+    cf_snsw[!, :datetime], cf_snsw[!, :value];
+    ylabel = "Correction Factor (p.u.)",
+    title  = "WIND_SNSW — Thermal Correction Factor",
+    label  = "CF",
+    color  = :blue,
+)
+
+plot!(plt[2],
+    ta_snsw[!, :datetime], ta_snsw[!, :value];
+    ylabel = "Temperature (°C)",
+    title  = "WIND_SNSW — Ambient Temperature",
+    label  = "t2m",
+    color  = :red,
+)
+
+plt
