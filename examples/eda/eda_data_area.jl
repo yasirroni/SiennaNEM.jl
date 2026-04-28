@@ -815,8 +815,9 @@ temperature_file_name = "Generator_2m_temperature-method3-20301221_20301227-era5
 ta_df = CSV.read(joinpath(temerature_dir, temperature_file_name), DataFrame)
 ta_df
 
+# Wind turbine temperature capacity correction factor (CF) (per-unit), piecewise-flat
 """
-    get_wind_correction_factor(
+    get_wind_thermal_correction_factor(
         ta_df,
         gen_df;
         id_col=:id,
@@ -858,7 +859,7 @@ Usage:
 
     min(cf * gen_capacity, power_output)
 """
-function get_wind_correction_factor(
+function get_wind_thermal_correction_factor(
     ta_df::DataFrame,
     gen_df::DataFrame;
     id_col::Symbol = :id,
@@ -937,10 +938,178 @@ gen_wind_df = filter(:tech => t -> !ismissing(t) && (t in wind_tech_values), dat
 wind_id_gens = Set(gen_wind_df[!, :id_gen])
 ta_wind_df = filter(:id_gen => idg -> idg in wind_id_gens, ta_df)
 
-windcf_sched = get_wind_correction_factor(
+windcf_sched = get_wind_thermal_correction_factor(
     ta_wind_df, gen_wind_df;
     gen_id_col=:id_gen,
     altitude_col=nothing,
 )
 CSV.write(joinpath(outdir, "Generator_cf_wind-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), windcf_sched)
 windcf_sched
+
+
+# Photovoltaic temperature power output correction factor (CF) (per-unit), piecewise-flat
+"""
+    get_inverter_thermal_correction_factor(
+        ta_df,
+        gen_df;
+        id_col=:id,
+        gen_id_col=:id_gen,
+        t2m_to_ambient_shift_c=0.0,
+        cooling_dT=0.0,
+        T_derate_start=50.0,
+        T_cutoff=60.0,
+    ) -> DataFrame
+
+Inverter thermal derating CF (per-unit), piecewise-linear in ambient temperature.
+
+Let `T_amb = t2m + t2m_to_ambient_shift_c`.
+Let `T_start = T_derate_start + cooling_dT`, `T_cut = T_cutoff + cooling_dT`.
+
+    cf_inv = 1.0                                 if T_amb ≤ T_start
+           = (T_cut - T_amb) / (T_cut - T_start) if T_start < T_amb < T_cut
+           = 0.0                                 if T_amb ≥ T_cut
+
+Guards:
+- If `T_cut ≤ T_start` returns `NaN` for all rows (invalid thresholds).
+- Missing/unusable temperatures return `NaN`.
+
+Returns `:id, :id_gen, :scenario, :date, :value` with `:value = cf_inv`.
+"""
+function get_inverter_thermal_correction_factor(
+    ta_df::DataFrame,
+    gen_df::DataFrame;
+    id_col::Symbol = :id,
+    gen_id_col::Symbol = :id_gen,
+    t2m_to_ambient_shift_c::Real = 0.0,
+    cooling_dT::Real = 0.0,
+    T_derate_start::Real = 50.0,
+    T_cutoff::Real = 60.0,
+)
+    T_start = Float64(T_derate_start) + Float64(cooling_dT)
+    T_cut = Float64(T_cutoff) + Float64(cooling_dT)
+    ΔT = T_cut - T_start
+
+    @inline function _inv_cf_scalar(t2m_c)::Float64
+        ismissing(t2m_c) && return NaN
+        ΔT > 0.0 || return NaN
+
+        t2m = Float64(t2m_c)
+        isfinite(t2m) || return NaN
+
+        T_amb = t2m + Float64(t2m_to_ambient_shift_c)
+
+        if T_amb <= T_start
+            return 1.0
+        elseif T_amb >= T_cut
+            return 0.0
+        else
+            return (T_cut - T_amb) / ΔT
+        end
+    end
+
+    df = leftjoin(ta_df, gen_df; on=gen_id_col)
+    df[!, :value] = _inv_cf_scalar.(df[!, :value])
+    return select(df, id_col, gen_id_col, :scenario, :date, :value)
+end
+
+"""
+    get_pv_module_temperature_correction_factor(
+        ta_df,
+        gen_df;
+        id_col=:id,
+        gen_id_col=:id_gen,
+        t2m_to_ambient_shift_c=0.0,
+        beta=-0.0036,
+        G_poa_wm2=1000.0,
+        v_wind_ms=1.0,
+        U0=25.0,
+        U1=6.84,
+    ) -> DataFrame
+
+PV module temperature derating CF (per-unit): Faiman (2008) + linear β.
+
+Let `T_amb = t2m + t2m_to_ambient_shift_c`.
+
+    T_cell   = T_amb + G / (U0 + U1*v_wind)
+    cf_mod   = 1 + beta*(T_cell - 25)
+
+Guards:
+- If `U0 + U1*v_wind ≤ 0` returns `NaN`.
+- Missing/unusable temperatures return `NaN`.
+
+Returns `:id, :id_gen, :scenario, :date, :value` with `:value = cf_module`.
+"""
+function get_pv_module_temperature_correction_factor(
+    ta_df::DataFrame,
+    gen_df::DataFrame;
+    id_col::Symbol = :id,
+    gen_id_col::Symbol = :id_gen,
+    t2m_to_ambient_shift_c::Real = 0.0,
+    beta::Real = -0.0036,
+    G_poa_wm2::Real = 1000.0,
+    v_wind_ms::Real = 1.0,
+    U0::Real = 25.0,
+    U1::Real = 6.84,
+)
+    denom = Float64(U0) + Float64(U1) * Float64(v_wind_ms)
+
+    @inline function _pv_mod_cf_scalar(t2m_c)::Float64
+        ismissing(t2m_c) && return NaN
+        denom > 0.0 || return NaN
+
+        t2m = Float64(t2m_c)
+        isfinite(t2m) || return NaN
+
+        T_amb = t2m + Float64(t2m_to_ambient_shift_c)
+        T_cell = T_amb + Float64(G_poa_wm2) / denom
+
+        return 1.0 + Float64(beta) * (T_cell - 25.0)
+    end
+
+    df = leftjoin(ta_df, gen_df; on=gen_id_col)
+    df[!, :value] = _pv_mod_cf_scalar.(df[!, :value])
+    return select(df, id_col, gen_id_col, :scenario, :date, :value)
+end
+
+# LargePV (grid_open_rack: U0=25, U1=6.84; central inverter 50→60)
+largepv_tech_values = ("LargePV",)
+gen_largepv_df = filter(:tech => t -> !ismissing(t) && (t in largepv_tech_values), data["generator"])
+
+largepv_id_gens = Set(gen_largepv_df[!, :id_gen])
+ta_largepv_df = filter(:id_gen => idg -> idg in largepv_id_gens, ta_df)
+
+pvmod_largepv_sched = get_pv_module_temperature_correction_factor(
+    ta_largepv_df, gen_largepv_df;
+    gen_id_col=:id_gen,
+    U0=25.0, U1=6.84,
+)
+pvinv_largepv_sched = get_inverter_thermal_correction_factor(
+    ta_largepv_df, gen_largepv_df;
+    gen_id_col=:id_gen,
+    T_derate_start=50.0, T_cutoff=60.0,
+    cooling_dT=0.0,
+)
+CSV.write(joinpath(outdir, "Generator_cf_largepv_pvmod-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), pvmod_largepv_sched)
+CSV.write(joinpath(outdir, "Generator_cf_largepv_pvinv-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), pvinv_largepv_sched)
+
+
+# RoofPV (rooftop_flush: U0=20, U1=0; string inverter 40→55)
+roofpv_tech_values = ("RoofPV",)
+gen_roofpv_df = filter(:tech => t -> !ismissing(t) && (t in roofpv_tech_values), data["generator"])
+
+roofpv_id_gens = Set(gen_roofpv_df[!, :id_gen])
+ta_roofpv_df = filter(:id_gen => idg -> idg in roofpv_id_gens, ta_df)
+
+pvmod_roofpv_sched = get_pv_module_temperature_correction_factor(
+    ta_roofpv_df, gen_roofpv_df;
+    gen_id_col=:id_gen,
+    U0=20.0, U1=0.0,
+)
+pvinv_roofpv_sched = get_inverter_thermal_correction_factor(
+    ta_roofpv_df, gen_roofpv_df;
+    gen_id_col=:id_gen,
+    T_derate_start=40.0, T_cutoff=55.0,
+    cooling_dT=0.0,
+)
+CSV.write(joinpath(outdir, "Generator_cf_roofpv_pvmod-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), pvmod_roofpv_sched)
+CSV.write(joinpath(outdir, "Generator_cf_roofpv_pvinv-method3-20301221_20301227-era5shape20240213_7d_AEST_sched_.csv"), pvinv_roofpv_sched)
