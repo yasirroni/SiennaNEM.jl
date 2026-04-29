@@ -232,6 +232,8 @@ id_gen_to_name = get_map_from_df(data["generator"], :id_gen, :name)
 gen_ids = unique(pm_scen[!, :id_gen])
 labels  = [id_gen_to_name[gid] for gid in gen_ids]
 
+id_gen_to_capacity = get_map_from_df(data["generator"], :id_gen, :capacity)
+
 # --- Build merged DataFrame ---
 merged_all = DataFrame()
 for gid in gen_ids
@@ -239,7 +241,16 @@ for gid in gen_ids
     cf = filter(:id_gen => ==(gid), cf_scen)
     merged = innerjoin(pm, cf, on = :date => :datetime, makeunique = true)
     sort!(merged, :date)
-    merged[!, :pmax_corrected] = merged[!, :value] .* merged[!, :value_1]
+
+    # Retrieve the installed capacity for this generator
+    gen_cap = id_gen_to_capacity[gid]
+
+    # pmax_corrected = min(cf * gen_capacity, power_output)
+    merged[!, :pmax_corrected] = min.(
+        merged[!, :value_1] .* gen_cap,  # cf * installed capacity
+        merged[!, :value]                # power output
+    )
+
     append!(merged_all, select(merged, :date, :id_gen, :value, :value_1, :pmax_corrected))
 end
 
@@ -337,8 +348,9 @@ Plots.plot!(merged[!, :date], merged[!, :value];
     subplot = 1,
 )
 
-Plots.plot!(merged[!, :date], merged[!, :value] .* merged[!, :value_1];
-    label   = "After (pmax × CF)",
+gen_cap = id_gen_to_capacity[id_gen]
+Plots.plot!(merged[!, :date], min.(merged[!, :value_1] .* gen_cap, merged[!, :value]);
+    label   = "After (min(cf × capacity, pmax))",
     subplot = 1,
 )
 
