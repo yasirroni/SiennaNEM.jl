@@ -211,46 +211,103 @@ plot!(plt[2],
 
 plt
 
+using PlotlyJS
+import PlotlyJS: scatter, Layout, Plot, attr
+
+# --- Data prep ---
+scenario_id = 1
 windpmax_filtered = filter(:id_gen => idg -> idg in wind_id_gens, data["generator_pmax_ts"])
 dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
 dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
 windpmax_filtered = filter(:date => d -> dt_start <= d <= dt_end, windpmax_filtered)
-plt = plot(
-    xlabel = "Date",
-    ylabel = "Power Output (MW)",
-    title  = "Wind Power Output Trace by Location",
-    legend = :outertopright,
-    size   = (1000, 500),
-    left_margin = 5mm,
-)
-# for gid in gen_ids
-#     sub = filter(:id_gen => ==(gid), windpmax_filtered)
-#     sort!(sub, :date)
-#     plot!(plt, sub[!, :date], sub[!, :value]; label = id_gen_to_name[gid])
-# end
 
-# Build a sorted date axis and a matrix of values (rows = timesteps, cols = generators)
-dates = sort(unique(windpmax_filtered[!, :date]))
-labels = [id_gen_to_name[gid] for gid in gen_ids]
+windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")
+windcf_filtered = filter(:id_gen => idg -> idg in wind_id_gens, windcf_sched)
+windcf_filtered = filter(:datetime => d -> dt_start <= d <= dt_end, windcf_filtered)
 
-value_matrix = hcat([
-    begin
-        sub = filter(:id_gen => ==(gid), windpmax_filtered)
-        sort!(sub, :date)
-        sub[!, :value]
-    end
-    for gid in gen_ids
-]...)  # size: (n_timesteps × n_generators)
-value_matrix_gw = value_matrix ./ 1000  # MW → GW (assuming values are MW)
-plt = areaplot(
-    dates,
-    value_matrix_gw;
-    label       = reshape(labels, 1, :),   # 1×n row vector for Plots.jl
-    xlabel      = "Date",
-    ylabel      = "Power Output (GW)",
-    title       = "Wind Power Output Trace by Location",
-    legend      = :outertopright,
-    size        = (1000, 500),
-    left_margin = 5mm,
+pm_scen = filter(:scenario => ==(scenario_id), windpmax_filtered)
+cf_scen = filter(:scenario => ==(scenario_id), windcf_filtered)
+
+id_gen_to_name = get_map_from_df(data["generator"], :id_gen, :name)
+gen_ids = unique(pm_scen[!, :id_gen])
+labels  = [id_gen_to_name[gid] for gid in gen_ids]
+
+# --- Build merged DataFrame ---
+merged_all = DataFrame()
+for gid in gen_ids
+    pm = filter(:id_gen => ==(gid), pm_scen)
+    cf = filter(:id_gen => ==(gid), cf_scen)
+    merged = innerjoin(pm, cf, on = :date => :datetime, makeunique = true)
+    sort!(merged, :date)
+    merged[!, :pmax_corrected] = merged[!, :value] .* merged[!, :value_1]
+    append!(merged_all, select(merged, :date, :id_gen, :value, :value_1, :pmax_corrected))
+end
+
+dates = sort(unique(merged_all[!, :date]))
+
+# --- Build matrices ---
+function build_matrix_from(df, val_col)
+    hcat([
+        begin
+            sub = filter(:id_gen => ==(gid), df)
+            sort!(sub, :date)
+            sub[!, val_col]
+        end
+        for gid in gen_ids
+    ]...)
+end
+
+before_gw = build_matrix_from(merged_all, :value)        ./ 1000
+after_gw  = build_matrix_from(merged_all, :pmax_corrected) ./ 1000
+
+# --- PlotlyJS stacked area, two subplots ---
+colors = [
+    "#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f",
+    "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac",
+    "#d37295"  # 11th
+]
+traces_before = [
+    scatter(
+        x          = dates,
+        y          = before_gw[:, i],
+        name       = labels[i],
+        stackgroup = "before",
+        fill       = "tonexty",
+        mode       = "lines",
+        legendgroup = labels[i],
+        line = attr(color = colors[i])
+    )
+    for i in 1:length(labels)
+]
+
+traces_after = [
+    scatter(
+        x          = dates,
+        y          = after_gw[:, i],
+        name       = labels[i],
+        stackgroup = "after",
+        fill       = "tonexty",
+        mode       = "lines",
+        legendgroup = labels[i],
+        showlegend = false,   # avoid duplicate legend entries
+        xaxis      = "x2",
+        yaxis      = "y2",
+        line = attr(color = colors[i])
+    )
+    for i in 1:length(labels)
+]
+
+layout = Layout(
+    title  = "Wind Power — Before vs After CF Correction",
+    xaxis  = attr(title = "Date", domain = [0, 1]),
+    yaxis  = attr(title = "Power Output (GW)", domain = [0.55, 1.0]),
+    xaxis2 = attr(title = "Date", domain = [0, 1]),
+    yaxis2 = attr(title = "Power Output (GW)", domain = [0.0, 0.45]),
+    legend = attr(x = 1.02, y = 1.0),
+    annotations = [
+        attr(text="Before CF Correction", x=0.5, y=1.02, xref="paper", yref="paper", showarrow=false, font=attr(size=13)),
+        attr(text="After CF Correction",  x=0.5, y=0.47, xref="paper", yref="paper", showarrow=false, font=attr(size=13)),
+    ],
 )
-plt
+
+Plot([traces_before; traces_after], layout)
