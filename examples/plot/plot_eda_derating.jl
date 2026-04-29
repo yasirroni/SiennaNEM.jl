@@ -132,6 +132,7 @@ p_norm = plot(p2_fwd, p2_rev; layout=(2, 1), size=(950, 860), dpi=150)
 savefig(p_norm, joinpath(imgs_dir, "plot_branch_normalised_capacity_derating_thermal_functions.png"))
 
 using Plots
+using Plots.PlotMeasures   # needed for `px` and `mm` units
 
 # Parse dates once
 windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")
@@ -147,9 +148,10 @@ windcf_filtered = filter(:datetime => d -> dt_start <= d <= dt_end, windcf_sched
 plt = plot(
     xlabel = "Date",
     ylabel = "Correction Factor (p.u.)",
-    title  = "Wind Thermal Correction Factor by Generator",
+    title  = "Wind Thermal Correction Factor by Location",
     legend = :outertopright,
     size   = (1000, 500),
+    left_margin = 5mm,
 )
 
 for gid in gen_ids
@@ -159,8 +161,6 @@ for gid in gen_ids
 end
 
 plt
-
-using Plots
 
 # Parse dates
 windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")
@@ -193,18 +193,64 @@ plt = plot(
 
 plot!(plt[1],
     cf_snsw[!, :datetime], cf_snsw[!, :value];
-    ylabel = "Correction Factor (p.u.)",
-    title  = "WIND_SNSW — Thermal Correction Factor",
-    label  = "CF",
-    color  = :blue,
+    ylabel      = "Correction Factor (p.u.)",
+    title       = "WIND_SNSW — Thermal Correction Factor",
+    label       = "CF",
+    color       = :blue,
+    left_margin = 5mm,
 )
 
 plot!(plt[2],
     ta_snsw[!, :datetime], ta_snsw[!, :value];
-    ylabel = "Temperature (°C)",
-    title  = "WIND_SNSW — Ambient Temperature",
-    label  = "t2m",
-    color  = :red,
+    ylabel      = "Temperature (°C)",
+    title       = "WIND_SNSW — Ambient Temperature",
+    label       = "t2m",
+    color       = :red,
+    left_margin = 5mm,
 )
 
+plt
+
+windpmax_filtered = filter(:id_gen => idg -> idg in wind_id_gens, data["generator_pmax_ts"])
+dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
+windpmax_filtered = filter(:date => d -> dt_start <= d <= dt_end, windpmax_filtered)
+plt = plot(
+    xlabel = "Date",
+    ylabel = "Power Output (MW)",
+    title  = "Wind Power Output Trace by Location",
+    legend = :outertopright,
+    size   = (1000, 500),
+    left_margin = 5mm,
+)
+# for gid in gen_ids
+#     sub = filter(:id_gen => ==(gid), windpmax_filtered)
+#     sort!(sub, :date)
+#     plot!(plt, sub[!, :date], sub[!, :value]; label = id_gen_to_name[gid])
+# end
+
+# Build a sorted date axis and a matrix of values (rows = timesteps, cols = generators)
+dates = sort(unique(windpmax_filtered[!, :date]))
+labels = [id_gen_to_name[gid] for gid in gen_ids]
+
+value_matrix = hcat([
+    begin
+        sub = filter(:id_gen => ==(gid), windpmax_filtered)
+        sort!(sub, :date)
+        sub[!, :value]
+    end
+    for gid in gen_ids
+]...)  # size: (n_timesteps × n_generators)
+value_matrix_gw = value_matrix ./ 1000  # MW → GW (assuming values are MW)
+plt = areaplot(
+    dates,
+    value_matrix_gw;
+    label       = reshape(labels, 1, :),   # 1×n row vector for Plots.jl
+    xlabel      = "Date",
+    ylabel      = "Power Output (GW)",
+    title       = "Wind Power Output Trace by Location",
+    legend      = :outertopright,
+    size        = (1000, 500),
+    left_margin = 5mm,
+)
 plt

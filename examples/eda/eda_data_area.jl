@@ -968,6 +968,11 @@ windcf_sched
 # We can see here that lots of wind became 0
 # 1-minimum(windcf_sched[:, :value]) * 100
 
+# windpmax_filtered = filter(:id_gen => idg -> idg in wind_id_gens, data["generator_pmax_ts"])
+# dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
+# dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
+# windpmax_filtered = filter(:date => d -> dt_start <= d <= dt_end, windpmax_filtered)
+
 # Photovoltaic temperature power output correction factor (CF) (per-unit), piecewise-flat
 """
     get_inverter_thermal_correction_factor(
