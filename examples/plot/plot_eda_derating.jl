@@ -299,10 +299,10 @@ traces_after = [
 
 layout = Layout(
     title  = "Wind Power — Before vs After CF Correction",
-    xaxis  = attr(title = "Date", domain = [0, 1]),
-    yaxis  = attr(title = "Power Output (GW)", domain = [0.55, 1.0]),
-    xaxis2 = attr(title = "Date", domain = [0, 1]),
-    yaxis2 = attr(title = "Power Output (GW)", domain = [0.0, 0.45]),
+    xaxis  = attr(title = "", domain = [0, 1], anchor = "y"),
+    yaxis  = attr(title = "Power Output (GW)", domain = [0.55, 1.0], anchor = "x"),
+    xaxis2 = attr(title = "Date", domain = [0, 1], anchor = "y2"),
+    yaxis2 = attr(title = "Power Output (GW)", domain = [0.0, 0.45], anchor = "x2"),
     legend = attr(x = 1.02, y = 1.0),
     annotations = [
         attr(text="Before CF Correction", x=0.5, y=1.02, xref="paper", yref="paper", showarrow=false, font=attr(size=13)),
@@ -311,3 +311,44 @@ layout = Layout(
 )
 
 Plot([traces_before; traces_after], layout)
+
+id_gen = 120
+
+pm_snsw = filter(:id_gen => ==(id_gen), pm_scen)
+cf_snsw = filter(:id_gen => ==(id_gen), cf_scen)
+
+merged = innerjoin(pm_snsw, cf_snsw, on = :date => :datetime, makeunique = true)
+sort!(merged, :date)
+
+println(names(merged))  # confirm column names
+println(merged[1:5, :]) # sanity check
+
+plt = Plots.plot(
+    layout      = (2, 1),
+    size        = (1000, 600),
+    left_margin = 10mm,
+    link        = :x,
+)
+
+Plots.plot!(merged[!, :date], merged[!, :value];
+    label   = "Before (pmax)",
+    ylabel  = "Power (MW)",
+    title   = "WIND_SNSW — Before vs After CF",
+    subplot = 1,
+)
+
+Plots.plot!(merged[!, :date], merged[!, :value] .* merged[!, :value_1];
+    label   = "After (pmax × CF)",
+    subplot = 1,
+)
+
+Plots.plot!(merged[!, :date], merged[!, :value_1];
+    label   = "CF",
+    ylabel  = "CF (p.u.)",
+    title   = "WIND_SNSW — Correction Factor",
+    xlabel  = "Date",
+    subplot = 2,
+    color   = :green,
+)
+
+plt
