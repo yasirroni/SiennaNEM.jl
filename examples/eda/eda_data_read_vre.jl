@@ -267,3 +267,24 @@ CSV.write(
 # check_one_vre_gen_per_bus("Wind")
 # check_one_vre_gen_per_bus("LargePV")
 # check_one_vre_gen_per_bus("RoofPV")
+
+## Filter
+want = Set(["2040-02-09", "2040-02-11"])
+rez_windcf_out_filt = filter(row -> first(String(row.date), 10) in want, rez_windcf_out)
+CSV.write(
+    joinpath(outdir, "Generator_cf_aggregate_wind-method$(method_number)-$(date_start)_$(date_end)-era5shape$(era5_date)_$(window_name)_AEST_sched_filter3d.csv"),
+    rez_windcf_out_filt
+)
+## LargePV
+rez_largepv_out_filt = filter(row -> first(String(row.date), 10) in want, rez_largepv_out)
+CSV.write(
+    joinpath(outdir, "Generator_cf_aggregate_largepv_pvmod-method$(method_number)-$(date_start)_$(date_end)-era5shape$(era5_date)_$(window_name)_AEST_sched_filter3d.csv"),
+    rez_largepv_out_filt
+)
+
+## RoofPV
+roofpv_out_filt = filter(row -> first(String(row.date), 10) in want, roofpv_out)
+CSV.write(
+    joinpath(outdir, "Generator_cf_aggregate_roofpv_pvmod-method$(method_number)-$(date_start)_$(date_end)-era5shape$(era5_date)_$(window_name)_AEST_sched_filter3d.csv"),
+    roofpv_out_filt
+)
