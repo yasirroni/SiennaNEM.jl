@@ -3,7 +3,7 @@ using CSV
 using Statistics
 using Dates
 
-vre_dir = joinpath(@__DIR__, "../../", "data", "out-ref4006-poe10", "csv")
+vre_dir = joinpath(@__DIR__, "../../", "data", "system")
 rez_mesh_file_name = "rez_mesh.csv"
 rooftop_mesh_file_name = "rooftop_mesh.csv"
 data["rez_mesh"] = CSV.read(joinpath(vre_dir, rez_mesh_file_name), DataFrame)
@@ -177,7 +177,8 @@ function _format_aggregate_for_csv(
 end
 
 # The date_shift_days is used to make the hot waves event align with demand data
-date_shift_days = 22
+# NOTE: latest update, the data is already shifted from the source
+date_shift_days = 0
 
 ## Wind
 wind_bus_to_idgen = _bus_to_idgen_map(data["generator"], "Wind")
