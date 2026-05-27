@@ -10,11 +10,11 @@ id_gen_to_name = get_map_from_df(data["generator"], :id_gen, :name)
 gen_ids = unique(windcf_sched[!, :id_gen])
 
 # Filter by date range
-dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
-dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
+dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 windcf_filtered = filter(:datetime => d -> dt_start <= d <= dt_end, windcf_sched)
 
-plt = plot(
+plt = Plots.plot(
     xlabel = "Date",
     ylabel = "Correction Factor (p.u.)",
     title  = "Wind Thermal Correction Factor by Location",
@@ -26,14 +26,13 @@ plt = plot(
 for gid in gen_ids
     sub = filter(:id_gen => ==(gid), windcf_filtered)
     sort!(sub, :datetime)
-    plot!(plt, sub[!, :datetime], sub[!, :value]; label = id_gen_to_name[gid])
+    Plots.plot!(plt, sub[!, :datetime], sub[!, :value]; label = id_gen_to_name[gid])
 end
 
 plt
 
 # Parse dates
 windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")
-ta_df[!, :datetime]        = DateTime.(ta_df[!, :date], "yyyy-mm-dd HH:MM:SS")
 
 using PlotlyJS
 import PlotlyJS: scatter, Layout, Plot, attr
@@ -41,8 +40,8 @@ import PlotlyJS: scatter, Layout, Plot, attr
 # --- Data prep ---
 scenario_id = 1
 windpmax_filtered = filter(:id_gen => idg -> idg in wind_id_gens, data["generator_pmax_ts"])
-dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
-dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
+dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 windpmax_filtered = filter(:date => d -> dt_start <= d <= dt_end, windpmax_filtered)
 
 windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")
@@ -203,8 +202,8 @@ id_gen_to_name = get_map_from_df(data["generator"], :id_gen, :name)
 gen_ids = unique(pvmodcf_roofpv_sched[!, :id_gen])
 
 # Filter by date range
-dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
-dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
+dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 pvmodcf_roofpv_filtered = filter(:datetime => d -> dt_start <= d <= dt_end, pvmodcf_roofpv_sched)
 
 plt = Plots.plot(
@@ -226,8 +225,8 @@ solar_id_gens = roofpv_id_gens
 # --- Data prep ---
 scenario_id = 1
 solarpmax_filtered = filter(:id_gen => idg -> idg in solar_id_gens, data["generator_pmax_ts"])
-dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
-dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
+dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 solarpmax_filtered = filter(:date => d -> dt_start <= d <= dt_end, solarpmax_filtered)
 
 pvmodcf_roofpv_sched[!, :datetime] = DateTime.(pvmodcf_roofpv_sched[!, :date], "yyyy-mm-dd HH:MM:SS")

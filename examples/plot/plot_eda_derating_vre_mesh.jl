@@ -6,16 +6,66 @@ using Statistics
 using PlotlyJS
 import PlotlyJS: scatter, Layout, Plot, attr
 
+function _filter_format_bus_level_for_csv(
+    bus_level::DataFrame,
+    bus_to_idgen::Dict{Int,Int};
+    drop_missing_idgen::Bool=true,
+    date_shift_days::Int=0,
+)
+    out = copy(bus_level)
+
+    # Keep original CSV-esque date string format, but allow shifting
+    if eltype(out.date) <: AbstractString
+        fmt = dateformat"yyyy-mm-dd HH:MM:SS"
+        dt = DateTime.(String.(out.date), fmt)
+
+        if date_shift_days != 0
+            dt = dt .+ Day(date_shift_days)
+        end
+
+        # convert back to the same string format for CSV output
+        out.date = Dates.format.(dt, fmt)
+    else
+        # non-string dates: just shift, keeping DateTime/Date type
+        if date_shift_days != 0
+            out.date = out.date .+ Day(date_shift_days)
+        end
+    end
+
+    # map bus -> id_gen
+    out.id_gen = get.(Ref(bus_to_idgen), Int.(out.id_bus), missing)
+
+    if drop_missing_idgen
+        filter!(row -> !ismissing(row.id_gen), out)
+    end
+
+    # final formatting
+    out.id_gen = Int.(out.id_gen)
+    out.id = out.id_gen
+
+    out = select(out, :id, :id_rez_mesh, :scenario, :date, :value, :id_bus, :bus_name, :id_rez, :rez_name, :id_gen)
+    sort!(out, [:scenario, :id_gen, :date])
+
+    return out
+end
+
+rez_windcf_bus_filtered = _filter_format_bus_level_for_csv(
+    rez_windcf_bus,
+    wind_bus_to_idgen;
+    drop_missing_idgen=true,
+    date_shift_days=0,
+)
+
 # --- choose one bus ---
 id_bus_sel = 1  # NQ
 scenario_sel = 1
 
 # --- time window ---
-dt_start = DateTime("2038-01-23 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
-dt_end   = DateTime("2038-01-25 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 
 # df_bus name is reserved for data["bus"] elsewhere; use df_bus_vre here.
-df_bus_vre = filter(:scenario => ==(scenario_sel), rez_windcf_bus)
+df_bus_vre = filter(:scenario => ==(scenario_sel), rez_windcf_bus_filtered)
 df_bus_vre = filter(:id_bus => ==(id_bus_sel), df_bus_vre)
 
 df_bus_vre[!, :datetime] = DateTime.(df_bus_vre[!, :date], dateformat"yyyy-mm-dd HH:MM:SS")
@@ -68,7 +118,7 @@ for (i, r) in enumerate(eachrow(rez_keys))
     rez_to_rgb[r.id_rez] = palette_rgb[mod1(i, length(palette_rgb))]
 end
 
-mesh_alpha = 0.18
+mesh_alpha = 0.1
 mean_alpha = 1.0
 
 # --- build traces ---
@@ -101,7 +151,7 @@ for r in eachrow(rez_keys)
     end
 end
 
-# NEW: mean line per REZ (opaque, shown in legend)
+# Add mean line per REZ (opaque, shown in legend)
 mean_rez_traces = PlotlyJS.GenericTrace[]
 for r in eachrow(rez_keys)
     id_rez = r.id_rez
@@ -122,42 +172,42 @@ for r in eachrow(rez_keys)
     )
 end
 
-# OPTIONAL: overall bus mean (black)
-overall_mean_trace = scatter(
-    x = df_mean.datetime,
-    y = df_mean.cf_mean,
-    mode = "lines",
-    name = "bus mean",
-    line = attr(color = "rgba(0,0,0,1.0)", width = 4, dash = "dash"),
-    hovertemplate = "bus mean<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
-)
+# # OPTIONAL: overall bus mean (black)
+# overall_mean_trace = scatter(
+#     x = df_mean.datetime,
+#     y = df_mean.cf_mean,
+#     mode = "lines",
+#     name = "bus mean",
+#     line = attr(color = "rgba(0,0,0,1.0)", width = 4, dash = "dash"),
+#     hovertemplate = "bus mean<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
+# )
 
-# OPTIONAL 2: low-spatial-granularity (1 profile per bus)
-windcf_low = copy(windcf_sched)
-windcf_low[!, :datetime] = DateTime.(windcf_low[!, :date], dateformat"yyyy-mm-dd HH:MM:SS")
-
-# add id_bus onto wind CF rows
-windcf_low = leftjoin(
-    windcf_low,
-    select(data["generator"], :id_gen, :id_bus);
-    on = :id_gen
-)
-
-# keep same scenario + bus + window
-scenario_sel = 1  # set to match your plot
-windcf_low = filter(:scenario => ==(scenario_sel), windcf_low)
-windcf_low = filter(:id_bus => ==(id_bus_sel), windcf_low)
-windcf_low = filter(:datetime => d -> dt_start <= d <= dt_end, windcf_low)
-sort!(windcf_low, :datetime)
-
-windcf_low_trace = scatter(
-    x = windcf_low.datetime,
-    y = windcf_low.value,
-    mode = "lines",
-    name = "low-granularity CF (bus profile)",
-    line = attr(color = "rgba(90,90,90,0.95)", width = 3, dash = "dash"),
-    hovertemplate = "low-gran CF<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
-)
+# # OPTIONAL 2: low-spatial-granularity (1 profile per bus)
+# windcf_low = copy(windcf_sched)
+# windcf_low[!, :datetime] = DateTime.(windcf_low[!, :date], dateformat"yyyy-mm-dd HH:MM:SS")
+# 
+# # add id_bus onto wind CF rows
+# windcf_low = leftjoin(
+#     windcf_low,
+#     select(data["generator"], :id_gen, :id_bus);
+#     on = :id_gen
+# )
+# 
+# # keep same scenario + bus + window
+# scenario_sel = 1  # set to match your plot
+# windcf_low = filter(:scenario => ==(scenario_sel), windcf_low)
+# windcf_low = filter(:id_bus => ==(id_bus_sel), windcf_low)
+# windcf_low = filter(:datetime => d -> dt_start <= d <= dt_end, windcf_low)
+# sort!(windcf_low, :datetime)
+# 
+# windcf_low_trace = scatter(
+#     x = windcf_low.datetime,
+#     y = windcf_low.value,
+#     mode = "lines",
+#     name = "low-granularity CF (bus profile)",
+#     line = attr(color = "rgba(90,90,90,0.95)", width = 3, dash = "dash"),
+#     hovertemplate = "low-gran CF<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
+# )
 
 layout = Layout(
     title = "REZ Wind CF — meshes + REZ means (bus $(id_bus_sel): $(bus_name))",
@@ -170,7 +220,7 @@ layout = Layout(
     annotations = [
         attr(
             x = 0.01, y = 0.99, xref = "paper", yref = "paper",
-            xanchor = "left", yanchor = "top",
+            xanchor = "left", yanchor = "bottom",
             text = "bus $(id_bus_sel): $(bus_name)",
             showarrow = false,
             font = attr(size = 12, color = "black"),
@@ -181,7 +231,8 @@ layout = Layout(
     ],
 )
 
-plt = Plot([mesh_traces...; mean_rez_traces...; overall_mean_trace; windcf_low_trace], layout)
+# plt = Plot([mesh_traces...; mean_rez_traces...; overall_mean_trace; windcf_low_trace], layout)
+plt = Plot([mesh_traces...; mean_rez_traces...], layout)
 plt
 
 ## LargePV
@@ -198,8 +249,8 @@ id_bus_sel = 1  # NQ
 scenario_sel = 1
 
 # --- time window ---
-dt_start = DateTime("2038-01-23 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
-dt_end   = DateTime("2038-01-25 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 
 # --- prep: filter + parse datetimes (mesh-level + joined bus metadata) ---
 df_bus_vre = filter(:scenario => ==(scenario_sel), rez_pvmodcf_largepv_bus)
@@ -257,7 +308,7 @@ for (i, r) in enumerate(eachrow(rez_keys))
     rez_to_rgb[r.id_rez] = palette_rgb[mod1(i, length(palette_rgb))]
 end
 
-mesh_alpha = 0.18
+mesh_alpha = 0.1
 mean_alpha = 1.0
 
 # --- build traces ---

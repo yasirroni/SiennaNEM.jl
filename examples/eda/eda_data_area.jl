@@ -1020,8 +1020,8 @@ windcf_sched
 # 1-minimum(windcf_sched[:, :value]) * 100
 
 # windpmax_filtered = filter(:id_gen => idg -> idg in wind_id_gens, data["generator_pmax_ts"])
-# dt_start = DateTime("2038-01-23 00:00:00", "yyyy-mm-dd HH:MM:SS")
-# dt_end   = DateTime("2038-01-25 00:00:00", "yyyy-mm-dd HH:MM:SS")
+# dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+# dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 # windpmax_filtered = filter(:date => d -> dt_start <= d <= dt_end, windpmax_filtered)
 
 # Photovoltaic temperature power output correction factor (CF) (per-unit), piecewise-flat
