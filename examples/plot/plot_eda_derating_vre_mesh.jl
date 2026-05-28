@@ -74,7 +74,7 @@ scenario_sel = 1
 
 # --- time window ---
 dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
-dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_end = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 
 # df_bus name is reserved for data["bus"] elsewhere; use df_bus_vre here.
 df_bus_vre = filter(:scenario => ==(scenario_sel), rez_windcf_bus_filtered)
@@ -125,7 +125,7 @@ rgba(rgb::NTuple{3,Int}, a::Real) = "rgba($(rgb[1]),$(rgb[2]),$(rgb[3]),$(Float6
 rez_keys = unique(select(df_bus_vre, :id_rez, :rez_name))
 sort!(rez_keys, :id_rez)
 
-rez_to_rgb = Dict{Int, NTuple{3,Int}}()
+rez_to_rgb = Dict{Int,NTuple{3,Int}}()
 for (i, r) in enumerate(eachrow(rez_keys))
     rez_to_rgb[Int(r.id_rez)] = palette_rgb[mod1(i, length(palette_rgb))]
 end
@@ -151,7 +151,7 @@ for r in eachrow(rez_keys)
     group_name = "rez_$(id_rez)"
 
     # 1) Actual mesh lines: plotted, transparent, no legend entry.
-    mesh_ids_rez = unique(df_bus_vre.id_rez_mesh[df_bus_vre.id_rez .== id_rez])
+    mesh_ids_rez = unique(df_bus_vre.id_rez_mesh[df_bus_vre.id_rez.==id_rez])
 
     for mid in mesh_ids_rez
         sub = view(
@@ -163,15 +163,15 @@ for r in eachrow(rez_keys)
         push!(
             mesh_traces,
             scatter(
-                x = sub.datetime,
-                y = sub.value,
-                mode = "lines",
-                name = "REZ $(id_rez): $(rez_name)",
-                showlegend = false,
-                legendgroup = group_name,
-                line = attr(color = mesh_color, width = 1),
-                hovertemplate = "REZ: %{customdata[1]}<br>mesh %{customdata[2]}<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
-                customdata = hcat(
+                x=sub.datetime,
+                y=sub.value,
+                mode="lines",
+                name="REZ $(id_rez): $(rez_name)",
+                showlegend=false,
+                legendgroup=group_name,
+                line=attr(color=mesh_color, width=1),
+                hovertemplate="REZ: %{customdata[1]}<br>mesh %{customdata[2]}<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
+                customdata=hcat(
                     fill(string(rez_name), nrow(sub)),
                     fill(string(mid), nrow(sub)),
                 ),
@@ -184,14 +184,14 @@ for r in eachrow(rez_keys)
     push!(
         legend_traces,
         scatter(
-            x = [dt_start, dt_end],
-            y = [missing, missing],
-            mode = "lines",
-            name = "REZ $(id_rez): $(rez_name)",
-            showlegend = true,
-            legendgroup = group_name,
-            line = attr(color = legend_color, width = 3),
-            hoverinfo = "skip",
+            x=[dt_start, dt_end],
+            y=[missing, missing],
+            mode="lines",
+            name="REZ $(id_rez): $(rez_name)",
+            showlegend=true,
+            legendgroup=group_name,
+            line=attr(color=legend_color, width=3),
+            hoverinfo="skip",
         ),
     )
 end
@@ -255,17 +255,17 @@ end
 # )
 
 layout = Layout(
-    title = "REZ Wind CF — meshes (bus $(id_bus_sel): $(bus_name))",
-    xaxis = attr(title = "Date"),
-    yaxis = attr(title = "CF (p.u.)"),
-    width = 1100,
-    height = 500,
-    legend = attr(
-        x = 1.02,
-        y = 1.0,
-        groupclick = "togglegroup",
+    title="REZ Wind CF — meshes (bus $(id_bus_sel): $(bus_name))",
+    xaxis=attr(title="Date"),
+    yaxis=attr(title="CF (p.u.)"),
+    width=1100,
+    height=500,
+    legend=attr(
+        x=1.02,
+        y=1.0,
+        groupclick="togglegroup",
     ),
-    margin = attr(l = 70, r = 40, t = 70, b = 60),
+    margin=attr(l=70, r=40, t=70, b=60),
 )
 
 # plt = Plot([mesh_traces...; mean_rez_traces...; overall_mean_trace; windcf_low_trace], layout)
@@ -287,7 +287,7 @@ scenario_sel = 1
 
 # --- time window ---
 dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
-dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
+dt_end = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 
 # --- prep: filter + parse datetimes (mesh-level + joined bus metadata) ---
 df_bus_vre = filter(:scenario => ==(scenario_sel), rez_pvmodcf_largepv_bus)
@@ -340,7 +340,7 @@ rgba(rgb::NTuple{3,Int}, a::Real) = "rgba($(rgb[1]),$(rgb[2]),$(rgb[3]),$(Float6
 rez_keys = unique(select(df_bus_vre, :id_rez, :rez_name))
 sort!(rez_keys, :id_rez)
 
-rez_to_rgb = Dict{Int, NTuple{3,Int}}()
+rez_to_rgb = Dict{Int,NTuple{3,Int}}()
 for (i, r) in enumerate(eachrow(rez_keys))
     rez_to_rgb[r.id_rez] = palette_rgb[mod1(i, length(palette_rgb))]
 end
@@ -360,19 +360,19 @@ for r in eachrow(rez_keys)
 
     mesh_color = rgba(base_rgb, mesh_alpha)
 
-    mesh_ids_rez = unique(df_bus_vre.id_rez_mesh[df_bus_vre.id_rez .== id_rez])
+    mesh_ids_rez = unique(df_bus_vre.id_rez_mesh[df_bus_vre.id_rez.==id_rez])
     for mid in mesh_ids_rez
         sub = view(df_bus_vre, (df_bus_vre.id_rez .== id_rez) .& (df_bus_vre.id_rez_mesh .== mid), :)
         push!(mesh_traces,
             scatter(
-                x = sub.datetime,
-                y = sub.value,
-                mode = "lines",
-                name = "REZ $(id_rez): $(rez_name)",
-                showlegend = false,
-                line = attr(color = mesh_color, width = 1),
-                hovertemplate = "REZ: %{customdata[1]}<br>mesh %{customdata[2]}<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
-                customdata = hcat(fill(string(rez_name), nrow(sub)), fill(string(mid), nrow(sub))),
+                x=sub.datetime,
+                y=sub.value,
+                mode="lines",
+                name="REZ $(id_rez): $(rez_name)",
+                showlegend=false,
+                line=attr(color=mesh_color, width=1),
+                hovertemplate="REZ: %{customdata[1]}<br>mesh %{customdata[2]}<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
+                customdata=hcat(fill(string(rez_name), nrow(sub)), fill(string(mid), nrow(sub))),
             )
         )
     end
@@ -383,44 +383,44 @@ for r in eachrow(rez_keys)
 
     push!(mean_rez_traces,
         scatter(
-            x = subm.datetime,
-            y = subm.cf_mean,
-            mode = "lines",
-            name = "REZ $(id_rez): $(rez_name) mean",
-            line = attr(color = mean_color, width = 3),
-            hovertemplate = "REZ mean<br>REZ: $(rez_name)<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
+            x=subm.datetime,
+            y=subm.cf_mean,
+            mode="lines",
+            name="REZ $(id_rez): $(rez_name) mean",
+            line=attr(color=mean_color, width=3),
+            hovertemplate="REZ mean<br>REZ: $(rez_name)<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
         )
     )
 end
 
 # Overall bus mean (all REZ combined) — black dashed
 overall_mean_trace = scatter(
-    x = df_mean_bus.datetime,
-    y = df_mean_bus.cf_mean_bus,
-    mode = "lines",
-    name = "bus mean (all REZ)",
-    line = attr(color = "rgba(0,0,0,1.0)", width = 4, dash = "dash"),
-    hovertemplate = "bus mean<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
+    x=df_mean_bus.datetime,
+    y=df_mean_bus.cf_mean_bus,
+    mode="lines",
+    name="bus mean (all REZ)",
+    line=attr(color="rgba(0,0,0,1.0)", width=4, dash="dash"),
+    hovertemplate="bus mean<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
 )
 
 layout = Layout(
-    title = "REZ PV module CF — meshes + REZ means (bus $(id_bus_sel): $(bus_name))",
-    xaxis = attr(title = "Date"),
-    yaxis = attr(title = "CF (p.u.)"),
-    width = 1100,
-    height = 500,
-    legend = attr(x = 1.02, y = 1.0),
-    margin = attr(l = 70, r = 40, t = 70, b = 60),
-    annotations = [
+    title="REZ PV module CF — meshes + REZ means (bus $(id_bus_sel): $(bus_name))",
+    xaxis=attr(title="Date"),
+    yaxis=attr(title="CF (p.u.)"),
+    width=1100,
+    height=500,
+    legend=attr(x=1.02, y=1.0),
+    margin=attr(l=70, r=40, t=70, b=60),
+    annotations=[
         attr(
-            x = 0.01, y = 0.99, xref = "paper", yref = "paper",
-            xanchor = "left", yanchor = "top",
-            text = "bus $(id_bus_sel): $(bus_name)",
-            showarrow = false,
-            font = attr(size = 12, color = "black"),
-            bgcolor = "rgba(255,255,255,0.7)",
-            bordercolor = "rgba(0,0,0,0.2)",
-            borderwidth = 1,
+            x=0.01, y=0.99, xref="paper", yref="paper",
+            xanchor="left", yanchor="top",
+            text="bus $(id_bus_sel): $(bus_name)",
+            showarrow=false,
+            font=attr(size=12, color="black"),
+            bgcolor="rgba(255,255,255,0.7)",
+            bordercolor="rgba(0,0,0,0.2)",
+            borderwidth=1,
         )
     ],
 )
