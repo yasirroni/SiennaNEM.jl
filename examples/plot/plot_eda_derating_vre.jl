@@ -1,7 +1,8 @@
 ## Wind correction factor plot
-
 using Plots
 using Plots.PlotMeasures   # needed for `px` and `mm` units
+
+# TODO: bug due to scenario 2
 
 # Parse dates once
 windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")
@@ -38,7 +39,6 @@ using PlotlyJS
 import PlotlyJS: scatter, Layout, Plot, attr
 
 # --- Data prep ---
-scenario_id = 1
 windpmax_filtered = filter(:id_gen => idg -> idg in wind_id_gens, data["generator_pmax_ts"])
 dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
@@ -48,8 +48,8 @@ windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM
 windcf_filtered = filter(:id_gen => idg -> idg in wind_id_gens, windcf_sched)
 windcf_filtered = filter(:datetime => d -> dt_start <= d <= dt_end, windcf_filtered)
 
-pm_scen = filter(:scenario => ==(scenario_id), windpmax_filtered)
-cf_scen = filter(:scenario => ==(scenario_id), windcf_filtered)
+pm_scen = filter(:scenario => ==(scenario), windpmax_filtered)
+cf_scen = filter(:scenario => ==(scenario), windcf_filtered)
 
 id_gen_to_name = get_map_from_df(data["generator"], :id_gen, :name)
 gen_ids = unique(pm_scen[!, :id_gen])
@@ -223,7 +223,6 @@ plt
 
 solar_id_gens = roofpv_id_gens
 # --- Data prep ---
-scenario_id = 1
 solarpmax_filtered = filter(:id_gen => idg -> idg in solar_id_gens, data["generator_pmax_ts"])
 dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 dt_end   = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
@@ -233,8 +232,8 @@ pvmodcf_roofpv_sched[!, :datetime] = DateTime.(pvmodcf_roofpv_sched[!, :date], "
 solarcf_filtered = filter(:id_gen => idg -> idg in solar_id_gens, pvmodcf_roofpv_sched)
 solarcf_filtered = filter(:datetime => d -> dt_start <= d <= dt_end, solarcf_filtered)
 
-pm_scen = filter(:scenario => ==(scenario_id), solarpmax_filtered)
-cf_scen = filter(:scenario => ==(scenario_id), solarcf_filtered)
+pm_scen = filter(:scenario => ==(scenario), solarpmax_filtered)
+cf_scen = filter(:scenario => ==(scenario), solarcf_filtered)
 
 id_gen_to_name = get_map_from_df(data["generator"], :id_gen, :name)
 gen_ids = unique(pm_scen[!, :id_gen])

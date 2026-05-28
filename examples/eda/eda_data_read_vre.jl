@@ -28,6 +28,10 @@ rooftop_ta_df = CSV.read(joinpath(temperature_dir, rooftop_temperature_file_name
 count(ismissing, Matrix(rez_ta_df))
 count(ismissing, Matrix(rooftop_ta_df))
 
+# NOTE: Currently, the :scenario is always 1 from the derating as it is scenario agnostic
+rez_ta_df[!, :scenario] .= scenario
+rooftop_ta_df[!, :scenario] .= scenario
+
 # remove rooftop with missing temperature data
 id_rooftop_mesh_with_missing =
     unique(rooftop_ta_df.id_rooftop_mesh[ismissing.(rooftop_ta_df.value)])
@@ -40,6 +44,7 @@ rooftop_counts = combine(groupby(data["rooftop_mesh"], :id_bus), nrow => :n_roof
 bus_mesh_counts = outerjoin(rez_counts, rooftop_counts; on=:id_bus)
 add_data_col_by_id!(bus_mesh_counts, bus_to_name; id_col=:id_bus, data_col=:bus_name)
 bus_mesh_counts
+
 # 12×3 DataFrame
 #  Row │ id_bus  n_rez_mesh  n_rooftop_mesh 
 #      │ Int64   Int64       Int64          

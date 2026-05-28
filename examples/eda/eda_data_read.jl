@@ -37,7 +37,7 @@ system_data_dir = arrow_dir
 schedule_name = "schedule-2040"
 
 ts_data_dir = joinpath(system_data_dir, schedule_name)
-scenario = 1
+scenario = 2
 interval = Hour(24)
 
 data = Dict{String,Any}()

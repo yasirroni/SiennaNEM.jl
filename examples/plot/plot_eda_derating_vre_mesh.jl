@@ -78,7 +78,7 @@ end
 function plot_rez_mesh_cf_by_bus(
     df_mesh::DataFrame;
     id_bus_sel::Int,
-    scenario_sel::Int=1,
+    scenario::Int=1,
     dt_start::DateTime,
     dt_end::DateTime,
     title_prefix::AbstractString="REZ CF",
@@ -130,7 +130,7 @@ function plot_rez_mesh_cf_by_bus(
     height::Int=500,
 )
     # --- prep: filter + parse datetimes ---
-    df_bus_vre = filter(scenario_col => ==(scenario_sel), df_mesh)
+    df_bus_vre = filter(scenario_col => ==(scenario), df_mesh)
     df_bus_vre = filter(id_bus_col => ==(id_bus_sel), df_bus_vre)
 
     df_bus_vre = copy(df_bus_vre)
@@ -182,7 +182,7 @@ function plot_rez_mesh_cf_by_bus(
             )
         else
             # Use precomputed REZ mean dataframe
-            df_mean_rez_plot = filter(scenario_col => ==(scenario_sel), df_mean_rez)
+            df_mean_rez_plot = filter(scenario_col => ==(scenario), df_mean_rez)
             df_mean_rez_plot = filter(id_bus_col => ==(id_bus_sel), df_mean_rez_plot)
             df_mean_rez_plot = copy(df_mean_rez_plot)
             df_mean_rez_plot[!, :datetime] = _as_datetime_for_plot.(df_mean_rez_plot[!, date_col], Ref(date_fmt))
@@ -233,7 +233,7 @@ function plot_rez_mesh_cf_by_bus(
         end
 
         df_low_spatial_plot[!, :datetime] = _as_datetime_for_plot.(df_low_spatial_plot[!, low_date_col], Ref(date_fmt))
-        df_low_spatial_plot = filter(low_scenario_col => ==(scenario_sel), df_low_spatial_plot)
+        df_low_spatial_plot = filter(low_scenario_col => ==(scenario), df_low_spatial_plot)
         df_low_spatial_plot = filter(low_id_bus_col => ==(id_bus_sel), df_low_spatial_plot)
         df_low_spatial_plot = filter(:datetime => d -> dt_start <= d <= dt_end, df_low_spatial_plot)
         sort!(df_low_spatial_plot, :datetime)
@@ -375,7 +375,7 @@ end
 
 # id_bus_sel = 8  # SNSW
 id_bus_sel = 1  # NQ
-scenario_sel = 1  # TODO: do scenario 2
+scenario = scenario  # TODO: do scenario 2
 
 dt_start = DateTime("2040-02-07 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
 dt_end = DateTime("2040-02-13 00:00:00", dateformat"yyyy-mm-dd HH:MM:SS")
@@ -392,7 +392,7 @@ rez_windcf_bus_filtered = _filter_format_bus_level_for_csv(
 plt_wind = plot_rez_mesh_cf_by_bus(
     rez_windcf_bus_filtered;
     id_bus_sel=id_bus_sel,
-    scenario_sel=scenario_sel,
+    scenario=scenario,
     dt_start=dt_start,
     dt_end=dt_end,
     title_prefix="REZ Wind CF",
@@ -416,7 +416,7 @@ plt_wind
 # plt_wind_all = plot_rez_mesh_cf_by_bus(
 #     rez_windcf_bus_filtered;
 #     id_bus_sel=id_bus_sel,
-#     scenario_sel=scenario_sel,
+#     scenario=scenario,
 #     dt_start=dt_start,
 #     dt_end=dt_end,
 #     title_prefix="REZ Wind CF",
@@ -438,7 +438,7 @@ plt_wind
 plt_largepv = plot_rez_mesh_cf_by_bus(
     rez_pvmodcf_largepv_bus;
     id_bus_sel=id_bus_sel,
-    scenario_sel=scenario_sel,
+    scenario=scenario,
     dt_start=dt_start,
     dt_end=dt_end,
     title_prefix="REZ PV module CF",
