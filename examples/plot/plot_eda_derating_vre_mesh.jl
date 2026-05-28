@@ -43,7 +43,19 @@ function _filter_format_bus_level_for_csv(
     out.id_gen = Int.(out.id_gen)
     out.id = out.id_gen
 
-    out = select(out, :id, :id_rez_mesh, :scenario, :date, :value, :id_bus, :bus_name, :id_rez, :rez_name, :id_gen)
+    out = select(
+        out,
+        :id,
+        :id_rez_mesh,
+        :scenario,
+        :date,
+        :value,
+        :id_bus,
+        :bus_name,
+        :id_rez,
+        :rez_name,
+        :id_gen,
+    )
     sort!(out, [:scenario, :id_gen, :date])
 
     return out
@@ -115,62 +127,95 @@ sort!(rez_keys, :id_rez)
 
 rez_to_rgb = Dict{Int, NTuple{3,Int}}()
 for (i, r) in enumerate(eachrow(rez_keys))
-    rez_to_rgb[r.id_rez] = palette_rgb[mod1(i, length(palette_rgb))]
+    rez_to_rgb[Int(r.id_rez)] = palette_rgb[mod1(i, length(palette_rgb))]
 end
 
 mesh_alpha = 0.1
 mean_alpha = 1.0
+legend_alpha = 1.0
 
 # --- build traces ---
 mesh_traces = PlotlyJS.GenericTrace[]
+legend_traces = PlotlyJS.GenericTrace[]
 
-# NEW: group meshes by REZ so they get the same shade
+# Group meshes by REZ so meshes in the same REZ share the same shade.
+# Actual plotted traces are the transparent mesh hairlines.
+# Legend traces are separate dummy traces with full opacity.
 for r in eachrow(rez_keys)
-    id_rez = r.id_rez
+    id_rez = Int(r.id_rez)
     rez_name = r.rez_name
 
     base_rgb = rez_to_rgb[id_rez]
     mesh_color = rgba(base_rgb, mesh_alpha)
+    legend_color = rgba(base_rgb, legend_alpha)
+    group_name = "rez_$(id_rez)"
 
-    # plot each mesh line (transparent) for this REZ
+    # 1) Actual mesh lines: plotted, transparent, no legend entry.
     mesh_ids_rez = unique(df_bus_vre.id_rez_mesh[df_bus_vre.id_rez .== id_rez])
+
     for mid in mesh_ids_rez
-        sub = view(df_bus_vre, (df_bus_vre.id_rez_mesh .== mid) .& (df_bus_vre.id_rez .== id_rez), :)
-        push!(mesh_traces,
+        sub = view(
+            df_bus_vre,
+            (df_bus_vre.id_rez_mesh .== mid) .& (df_bus_vre.id_rez .== id_rez),
+            :,
+        )
+
+        push!(
+            mesh_traces,
             scatter(
                 x = sub.datetime,
                 y = sub.value,
                 mode = "lines",
-                name = "REZ $(id_rez): $(rez_name)", # legend handled by mean line
+                name = "REZ $(id_rez): $(rez_name)",
                 showlegend = false,
+                legendgroup = group_name,
                 line = attr(color = mesh_color, width = 1),
                 hovertemplate = "REZ: %{customdata[1]}<br>mesh %{customdata[2]}<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
-                customdata = hcat(fill(string(rez_name), nrow(sub)), fill(string(mid), nrow(sub))),
-            )
+                customdata = hcat(
+                    fill(string(rez_name), nrow(sub)),
+                    fill(string(mid), nrow(sub)),
+                ),
+            ),
         )
     end
-end
 
-# Add mean line per REZ (opaque, shown in legend)
-mean_rez_traces = PlotlyJS.GenericTrace[]
-for r in eachrow(rez_keys)
-    id_rez = r.id_rez
-    rez_name = r.rez_name
-    base_rgb = rez_to_rgb[id_rez]
-    mean_color = rgba(base_rgb, mean_alpha)
-
-    subm = view(df_mean_rez, df_mean_rez.id_rez .== id_rez, :)
-    push!(mean_rez_traces,
+    # 2) Legend-only dummy trace: shown in legend, not visible on plot.
+    # y = missing means no actual line is drawn, but the legend swatch stays opaque.
+    push!(
+        legend_traces,
         scatter(
-            x = subm.datetime,
-            y = subm.cf_mean_rez,
+            x = [dt_start, dt_end],
+            y = [missing, missing],
             mode = "lines",
-            name = "REZ $(id_rez): $(rez_name) mean",
-            line = attr(color = mean_color, width = 3),
-            hovertemplate = "REZ mean<br>REZ: $(rez_name)<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
-        )
+            name = "REZ $(id_rez): $(rez_name)",
+            showlegend = true,
+            legendgroup = group_name,
+            line = attr(color = legend_color, width = 3),
+            hoverinfo = "skip",
+        ),
     )
 end
+
+# # OPTIONAL: mean line per REZ (opaque, shown in legend)
+# mean_rez_traces = PlotlyJS.GenericTrace[]
+# for r in eachrow(rez_keys)
+#     id_rez = r.id_rez
+#     rez_name = r.rez_name
+#     base_rgb = rez_to_rgb[id_rez]
+#     mean_color = rgba(base_rgb, mean_alpha)
+
+#     subm = view(df_mean_rez, df_mean_rez.id_rez .== id_rez, :)
+#     push!(mean_rez_traces,
+#         scatter(
+#             x = subm.datetime,
+#             y = subm.cf_mean_rez,
+#             mode = "lines",
+#             name = "REZ $(id_rez): $(rez_name) mean",
+#             line = attr(color = mean_color, width = 3),
+#             hovertemplate = "REZ mean<br>REZ: $(rez_name)<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
+#         )
+#     )
+# end
 
 # # OPTIONAL: overall bus mean (black)
 # overall_mean_trace = scatter(
@@ -182,7 +227,7 @@ end
 #     hovertemplate = "bus mean<br>%{x}<br>cf=%{y:.3f}<extra></extra>",
 # )
 
-# # OPTIONAL 2: low-spatial-granularity (1 profile per bus)
+# # OPTIONAL: low-spatial-granularity (1 profile per bus)
 # windcf_low = copy(windcf_sched)
 # windcf_low[!, :datetime] = DateTime.(windcf_low[!, :date], dateformat"yyyy-mm-dd HH:MM:SS")
 # 
@@ -210,29 +255,21 @@ end
 # )
 
 layout = Layout(
-    title = "REZ Wind CF — meshes + REZ means (bus $(id_bus_sel): $(bus_name))",
+    title = "REZ Wind CF — meshes (bus $(id_bus_sel): $(bus_name))",
     xaxis = attr(title = "Date"),
     yaxis = attr(title = "CF (p.u.)"),
     width = 1100,
     height = 500,
-    legend = attr(x = 1.02, y = 1.0),
+    legend = attr(
+        x = 1.02,
+        y = 1.0,
+        groupclick = "togglegroup",
+    ),
     margin = attr(l = 70, r = 40, t = 70, b = 60),
-    annotations = [
-        attr(
-            x = 0.01, y = 0.99, xref = "paper", yref = "paper",
-            xanchor = "left", yanchor = "bottom",
-            text = "bus $(id_bus_sel): $(bus_name)",
-            showarrow = false,
-            font = attr(size = 12, color = "black"),
-            bgcolor = "rgba(255,255,255,0.7)",
-            bordercolor = "rgba(0,0,0,0.2)",
-            borderwidth = 1,
-        )
-    ],
 )
 
 # plt = Plot([mesh_traces...; mean_rez_traces...; overall_mean_trace; windcf_low_trace], layout)
-plt = Plot([mesh_traces...; mean_rez_traces...], layout)
+plt = Plot([mesh_traces...; legend_traces...], layout)
 plt
 
 ## LargePV
