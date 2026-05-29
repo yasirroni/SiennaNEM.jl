@@ -2,7 +2,6 @@
 using Plots
 using Plots.PlotMeasures   # needed for `px` and `mm` units
 
-# TODO: bug due to scenario 2
 
 # Parse dates once
 windcf_sched[!, :datetime] = DateTime.(windcf_sched[!, :date], "yyyy-mm-dd HH:MM:SS")

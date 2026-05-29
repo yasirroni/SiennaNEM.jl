@@ -760,6 +760,9 @@ mkpath(outdir)
 temerature_dir = joinpath(@__DIR__, "../..", "data/weather/temperature")
 line_temperature_file_name = "Line_2m_temperature-method$(method_number)-$(date_start)_$(date_end)-era5shape$(era5_date)_$(window_name)_AEST_sched_.csv"
 line_ta_df = CSV.read(joinpath(temerature_dir, line_temperature_file_name), DataFrame)
+
+# NOTE: Currently, the :scenario is always 1 from the derating as it is scenario agnostic
+line_ta_df[!, :scenario] .= scenario
 line_ta_df
 # 9072×5 DataFrame
 #   Row │ id     id_lin  scenario  date                 value   
@@ -870,6 +873,9 @@ temerature_dir = joinpath(@__DIR__, "../..", "data/weather/temperature")
 generator_temperature_file_name = "Generator_2m_temperature-method$(method_number)-$(date_start)_$(date_end)-era5shape$(era5_date)_$(window_name)_AEST_sched_.csv"
 
 generator_ta_df = CSV.read(joinpath(temerature_dir, generator_temperature_file_name), DataFrame)
+
+# NOTE: Currently, the :scenario is always 1 from the derating as it is scenario agnostic
+generator_ta_df[!, :scenario] .= scenario
 generator_ta_df
 
 # Add area data to generator DataFrame for temperature-based derating and analysis
